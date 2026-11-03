@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شجرة أسرة الصالح — القائمة الكاملة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#2f8f5e;
+    --gold-dark:#1f6b45;
+    --maroon:#163625;
+    --male:#3f8f68;
+    --female:#c0392b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:0;
+    font-family:'Cairo','Tahoma',sans-serif;
+    background:#eaf5ee;
+    color:#1c2e24;
+  }
+  .wrap{ max-width:1100px; margin:0 auto; padding:20px 16px 60px; }
+
+  .controls{ display:flex; flex-direction:column; gap:8px; margin:0; }
+  .controls button{
+    font-family:inherit; font-size:.88em; cursor:pointer;
+    background:var(--gold); color:#fff; border:none;
+    padding:9px 12px; border-radius:8px; font-weight:600;
+    box-shadow:0 2px 6px rgba(0,0,0,.2);
+  }
+  .controls button:hover{ background:var(--gold-dark); }
+  .hide-female-toggle{
+    display:flex; align-items:center; justify-content:center; gap:6px; background:#f7fbf8;
+    border:1.5px solid #ddd; border-radius:8px; padding:8px 10px; font-size:.85em; cursor:pointer;
+  }
+
+  .tree-viewport{
+    background:#fbfdfc;
+    border:3px solid var(--gold); border-radius:20px;
+    padding:14px 10px; margin-top:10px;
+    display:flex; align-items:flex-start; gap:14px;
+  }
+  .tree-content{ flex:1 1 auto; min-width:0; }
+  .tree-sidebar{
+    flex:0 0 200px; width:200px;
+    display:flex; flex-direction:column; gap:12px;
+    position:sticky; top:14px;
+    background:#f2f9f4; border:1.5px solid #ddd; border-radius:14px;
+    padding:12px;
+  }
+
+  .search-panel-wrap{ position:relative; }
+  .search-panel{
+    display:flex; flex-direction:column; align-items:stretch; gap:8px;
+  }
+  .search-field{ display:flex; flex-direction:column; gap:4px; }
+  .search-field label{ font-size:.78em; color:#3f5c4c; font-weight:700; padding:0 3px; }
+  .search-field input{
+    font-family:inherit; font-size:.9em; padding:8px 12px; border-radius:10px;
+    border:1.5px solid #ddd; width:100%; direction:rtl; background:#fff; color:#1c2e24;
+  }
+  .search-field input::placeholder{ color:#9dbfa9; }
+  .search-field input:focus{ outline:none; border-color:var(--male); }
+  #searchBtn{
+    display:flex; align-items:center; justify-content:center; gap:8px; font-family:inherit; font-weight:800;
+    font-size:.92em; cursor:pointer; background:var(--male); color:#fff; border:none;
+    padding:9px 14px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,.18);
+  }
+  #searchBtn:hover{ background:#2f7a54; }
+  #searchResults{
+    margin-top:8px; background:#fff;
+    border:2px solid var(--gold); border-radius:10px; max-height:280px;
+    overflow-y:auto; display:none; box-shadow:0 6px 18px rgba(0,0,0,.2);
+  }
+  #searchResults div{ padding:8px 10px; cursor:pointer; border-bottom:1px solid #eee; font-size:.85em; }
+  #searchResults div:hover{ background:#e6f4ea; }
+  #searchResults .path{ color:#888; font-size:.75em; }
+
+  @media (max-width: 768px){
+    .tree-viewport{ flex-direction:column; }
+    .tree-sidebar{ width:100%; flex:0 0 auto; position:static; }
+  }
+
+  .node{ }
+  .row{
+    display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px;
+    min-height:30px;
+  }
+  .row.has-children{ cursor:pointer; }
+  .row:hover{ background:#eef7f0; }
+  .toggle{
+    width:16px; height:16px; flex:0 0 auto; text-align:center; color:var(--gold-dark);
+    font-size:.75em; user-select:none; transition:transform .15s; line-height:16px;
+  }
+  .toggle.open{ transform:rotate(90deg); }
+  .spacer{ width:16px; flex:0 0 auto; }
+  .branch-bar{ width:4px; align-self:stretch; border-radius:3px; flex:0 0 auto; min-height:18px; }
+  .name{ font-weight:600; font-size:.96em; }
+  .name.female{ color:var(--female); }
+  .name.male{ color:#1c2e24; }
+  .count{ font-size:.76em; color:#6b8a76; }
+  .children{
+    border-inline-start:1.5px dashed #d8e6dc; margin-inline-start:12px; padding-inline-start:10px;
+  }
+  .children.collapsed{ display:none; }
+  body.hide-female .node.gender-female{ display:none; }
+
+  .highlight-flash{ animation: flash 1.8s ease; }
+  @keyframes flash{ 0%{ background:#fff3b0; } 100%{ background:transparent; } }
+
+  .load-note{ text-align:center; padding:60px 20px; color:#3f5c4c; font-size:1em; line-height:1.8; }
+
+  @media (max-width: 640px){
+    .search-field input{ width:110px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="tree-viewport">
+    <div class="tree-content" id="treeViewport">
+      <p class="load-note" id="loadNote">جارٍ تحميل الشجرة…</p>
+    </div>
+
+    <aside class="tree-sidebar">
+      <div class="controls">
+        <button id="expandAllBtn">↧ توسيع الكل</button>
+        <button id="collapseAllBtn">↥ طي الكل</button>
+        <label class="hide-female-toggle"><input type="checkbox" id="hideFemaleChk"> إخفاء الإناث</label>
+      </div>
+
+      <div class="search-panel-wrap">
+        <div class="search-panel">
+          <div class="search-field">
+            <label>الاسم</label>
+            <input id="searchName" type="text" placeholder="اسم الفرد" autocomplete="off" list="nameList">
+          </div>
+          <div class="search-field">
+            <label>اسم الأب</label>
+            <input id="searchFather" type="text" placeholder="اختياري" autocomplete="off" list="fatherList">
+          </div>
+          <div class="search-field">
+            <label>اسم الجد</label>
+            <input id="searchGrandfather" type="text" placeholder="اختياري" autocomplete="off" list="grandfatherList">
+          </div>
+          <div class="search-field">
+            <label>اسم الجد الأكبر</label>
+            <input id="searchGGFather" type="text" placeholder="اختياري" autocomplete="off" list="ggfatherList">
+          </div>
+          <div class="search-field">
+            <label>الفرع الرئيسي</label>
+            <input id="searchBranch" type="text" placeholder="اختياري" autocomplete="off" list="branchList">
+          </div>
+          <datalist id="nameList"></datalist>
+          <datalist id="fatherList"></datalist>
+          <datalist id="grandfatherList"></datalist>
+          <datalist id="ggfatherList"></datalist>
+          <datalist id="branchList"></datalist>
+          <button id="searchBtn" type="button"><span class="ic">🔍</span> بحث</button>
+          <div id="searchResults"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+</div>
+
+<script>
+  // Same 5-branch palette as before, so colors stay consistent.
+  const BRANCH_COLORS = {
+    'ابراهيم': '#8fb3d9', 'إبراهيم': '#8fb3d9',
+    'صالح': '#8fc7a4',
+    'عبدالله': '#bda6d9',
+    'محمد': '#e8bd8a',
+    'عثمان': '#dd9aa6'
+  };
+  const BRANCH_FALLBACK = '#c7bda3';
+
+  function hexToRgb(hex){
+    const h = hex.replace('#','');
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  function lighten(hex, amount){
+    const [r,g,b] = hexToRgb(hex);
+    const t = Math.min(amount, 0.75);
+    const mix = c => Math.round(c + (255 - c) * t);
+    return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+  }
+
+  let data; // set once data/tree.json loads
+
+  function augment(node, depth, parent){
+    node._depth = depth;
+    node._parent = parent;
+    node._children = node.children || [];
+    if(depth < 4){
+      node._color = lighten(BRANCH_FALLBACK, depth * 0.09);
+      node._branchBase = null;
+      node._branchName = null;
+    } else if(depth === 4){
+      node._branchBase = BRANCH_COLORS[node.name] || BRANCH_FALLBACK;
+      node._color = lighten(node._branchBase, depth * 0.09);
+      node._branchName = node.name;
+    } else {
+      node._branchBase = parent._branchBase;
+      node._branchName = parent._branchName;
+      node._color = lighten(node._branchBase, Math.min(depth * 0.09, 0.7));
+    }
+    node._total = 1;
+    node._children.forEach(c => { augment(c, depth+1, node); node._total += c._total; });
+  }
+
+  const allNodes = [];
+
+  // ---- locate a node by the path of child-indices from the root (robust even
+  // when several people share the same name), used to apply stored additions
+  // and corrections at the exact spot they were made ----
+  function indexPath(n){
+    const path = [];
+    let cur = n;
+    while(cur._parent){
+      path.unshift(cur._parent._children.indexOf(cur));
+      cur = cur._parent;
+    }
+    return path;
+  }
+  function nodeAtIndexPath(path){
+    let node = data;
+    for(const idx of path){
+      if(!node._children || idx < 0 || idx >= node._children.length) return null;
+      node = node._children[idx];
+    }
+    return node;
+  }
+  function attachChild(parent, name, gender){
+    const raw = { name: name, gender: gender };
+    if(!parent.children) parent.children = [];
+    parent.children.push(raw);
+    parent._children = parent.children;
+    augment(raw, parent._depth + 1, parent);
+    let cur = parent;
+    while(cur){ cur._total += raw._total; cur = cur._parent; }
+    return raw;
+  }
+
+  // ---- render ----
+  const DEFAULT_OPEN_DEPTH = 4;
+
+  function buildRow(node){
+    const row = document.createElement('div');
+    row.className = 'row' + (node._children.length ? ' has-children' : '');
+
+    const bar = document.createElement('span');
+    bar.className = 'branch-bar';
+    bar.style.background = node._color;
+    row.appendChild(bar);
+
+    if(node._children.length){
+      const toggle = document.createElement('span');
+      toggle.className = 'toggle' + (node._depth < DEFAULT_OPEN_DEPTH ? ' open' : '');
+      toggle.textContent = '◂';
+      row.appendChild(toggle);
+    } else {
+      const spacer = document.createElement('span');
+      spacer.className = 'spacer';
+      row.appendChild(spacer);
+    }
+
+    const name = document.createElement('span');
+    name.className = 'name ' + (node.gender === 'female' ? 'female' : 'male');
+    name.textContent = node.name;
+    row.appendChild(name);
+
+    if(node._children.length){
+      const count = document.createElement('span');
+      count.className = 'count';
+      count.textContent = `(${node._total} فرد)`;
+      row.appendChild(count);
+    }
+    return row;
+  }
+
+  function buildNode(node){
+    const wrap = document.createElement('div');
+    wrap.className = 'node' + (node.gender === 'female' ? ' gender-female' : '');
+    node._el = wrap;
+    const row = buildRow(node);
+    node._row = row;
+    wrap.appendChild(row);
+
+    if(node._children.length){
+      const childWrap = document.createElement('div');
+      childWrap.className = 'children' + (node._depth < DEFAULT_OPEN_DEPTH ? '' : ' collapsed');
+      node._childWrap = childWrap;
+      node._children.forEach(c => childWrap.appendChild(buildNode(c)));
+      wrap.appendChild(childWrap);
+
+      row.addEventListener('click', () => {
+        childWrap.classList.toggle('collapsed');
+        row.querySelector('.toggle').classList.toggle('open');
+      });
+    }
+    return wrap;
+  }
+
+  // Everything below depends on the final tree (after stored additions/
+  // corrections have been applied), so it all runs inside boot().
+  function boot(){
+  allNodes.length = 0;
+  (function collect(n){ allNodes.push(n); n._children.forEach(collect); })(data);
+
+  const viewport = document.getElementById('treeViewport');
+  viewport.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  frag.appendChild(buildNode(data));
+  viewport.appendChild(frag);
+
+  // ---- expand/collapse all ----
+  document.getElementById('expandAllBtn').onclick = () => {
+    allNodes.forEach(n => {
+      if(n._childWrap) n._childWrap.classList.remove('collapsed');
+      if(n._row){ const t = n._row.querySelector('.toggle'); if(t) t.classList.add('open'); }
+    });
+  };
+  document.getElementById('collapseAllBtn').onclick = () => {
+    allNodes.forEach(n => {
+      if(n === data) return;
+      if(n._childWrap) n._childWrap.classList.add('collapsed');
+      if(n._row){ const t = n._row.querySelector('.toggle'); if(t) t.classList.remove('open'); }
+    });
+  };
+  document.getElementById('hideFemaleChk').addEventListener('change', (e) => {
+    document.body.classList.toggle('hide-female', e.target.checked);
+  });
+
+  // ---- search (Arabic-aware normalization + cascading suggestions) ----
+  const ARABIC_ALLOWED = /[^؀-ۿݐ-ݿࢠ-ࣿ\s]/g;
+  function arabicOnly(s){ return (s || '').replace(ARABIC_ALLOWED, ''); }
+  function normalizeArabic(s){
+    return arabicOnly(s)
+      .replace(/[ً-ٰٟـ]/g, '')
+      .replace(/[إأآا]/g, 'ا')
+      .replace(/ى/g, 'ي')
+      .replace(/ة/g, 'ه')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  function fieldTerm(id){
+    const raw = document.getElementById(id).value || '';
+    const cleaned = arabicOnly(raw).trim().replace(/^(بن|ابن|بنت)\s+/, '');
+    return normalizeArabic(cleaned);
+  }
+  function ancestorChain(n){
+    const chain = [];
+    let cur = n;
+    while(cur){ chain.push(cur.name); cur = cur._parent; }
+    return chain;
+  }
+  function normalizedChain(n){ return ancestorChain(n).map(normalizeArabic); }
+  function currentFields(){
+    return {
+      name: fieldTerm('searchName'),
+      father: fieldTerm('searchFather'),
+      grandfather: fieldTerm('searchGrandfather'),
+      ggf: fieldTerm('searchGGFather'),
+      branch: fieldTerm('searchBranch')
+    };
+  }
+  function matchScore(name, term){
+    if(name === term) return 0;
+    if(name.startsWith(term)) return 1;
+    if(name.includes(term)) return 2;
+    return null;
+  }
+  function filterCandidates(fields){
+    const { name, father, grandfather, ggf, branch } = fields;
+    return allNodes.filter(n => {
+      const chain = normalizedChain(n);
+      if(name && (!chain[0] || matchScore(chain[0], name) === null)) return false;
+      if(father && (!chain[1] || matchScore(chain[1], father) === null)) return false;
+      if(grandfather && (!chain[2] || matchScore(chain[2], grandfather) === null)) return false;
+      if(ggf && (!chain[3] || matchScore(chain[3], ggf) === null)) return false;
+      if(branch){
+        const bn = n._branchName ? normalizeArabic(n._branchName) : '';
+        if(!bn || matchScore(bn, branch) === null) return false;
+      }
+      return true;
+    });
+  }
+  function search(fields){
+    const { name, father, grandfather, ggf, branch } = fields;
+    if(!name && !father && !grandfather && !ggf && !branch) return [];
+    let scored = filterCandidates(fields).map(n => {
+      const chain = normalizedChain(n);
+      let total = 0;
+      if(name) total += matchScore(chain[0], name);
+      if(father) total += matchScore(chain[1], father);
+      if(grandfather) total += matchScore(chain[2], grandfather);
+      if(ggf) total += matchScore(chain[3], ggf);
+      if(branch) total += matchScore(normalizeArabic(n._branchName), branch);
+      return { n, s: total };
+    });
+    if(!scored.length){
+      const terms = [name, father, grandfather, ggf].filter(Boolean);
+      scored = allNodes.map(n => {
+        const chain = normalizedChain(n);
+        const ok = terms.every(t => chain.some(part => part.includes(t)));
+        if(!ok) return null;
+        if(branch){
+          const bn = n._branchName ? normalizeArabic(n._branchName) : '';
+          if(!bn.includes(branch)) return null;
+        }
+        return { n, s: 3 };
+      }).filter(Boolean);
+    }
+    scored.sort((a,b) => a.s - b.s || a.n.name.localeCompare(b.n.name, 'ar'));
+    return scored.slice(0, 30).map(x => x.n);
+  }
+  function setDatalist(el, values){
+    const uniq = [...new Set(values.filter(Boolean))].sort((a,b) => a.localeCompare(b, 'ar'));
+    el.innerHTML = uniq.map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`).join('');
+  }
+  const nameListEl = document.getElementById('nameList');
+  const fatherListEl = document.getElementById('fatherList');
+  const grandfatherListEl = document.getElementById('grandfatherList');
+  const ggfatherListEl = document.getElementById('ggfatherList');
+  const branchListEl = document.getElementById('branchList');
+
+  function refreshFatherOptions(){
+    const f = currentFields();
+    setDatalist(fatherListEl, filterCandidates({ name: f.name }).map(n => ancestorChain(n)[1]));
+  }
+  function refreshGrandfatherOptions(){
+    const f = currentFields();
+    setDatalist(grandfatherListEl, filterCandidates({ name: f.name, father: f.father }).map(n => ancestorChain(n)[2]));
+  }
+  function refreshGgfOptions(){
+    const f = currentFields();
+    setDatalist(ggfatherListEl, filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather }).map(n => ancestorChain(n)[3]));
+  }
+  function refreshBranchOptions(){
+    const f = currentFields();
+    setDatalist(branchListEl, filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather, ggf: f.ggf }).map(n => n._branchName));
+  }
+  setDatalist(nameListEl, allNodes.map(n => n.name));
+  refreshFatherOptions();
+  refreshGrandfatherOptions();
+  refreshGgfOptions();
+  refreshBranchOptions();
+
+  document.getElementById('searchName').addEventListener('input', refreshFatherOptions);
+  document.getElementById('searchFather').addEventListener('input', refreshGrandfatherOptions);
+  document.getElementById('searchGrandfather').addEventListener('input', refreshGgfOptions);
+  document.getElementById('searchGGFather').addEventListener('input', refreshBranchOptions);
+
+  function revealNode(n){
+    let cur = n._parent;
+    while(cur){
+      if(cur._childWrap){
+        cur._childWrap.classList.remove('collapsed');
+        const t = cur._row && cur._row.querySelector('.toggle');
+        if(t) t.classList.add('open');
+      }
+      cur = cur._parent;
+    }
+    n._row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    n._row.classList.add('highlight-flash');
+    setTimeout(() => n._row.classList.remove('highlight-flash'), 1800);
+  }
+
+  const resultsBox = document.getElementById('searchResults');
+  function runSearch(){
+    const fields = currentFields();
+    if(!fields.name && !fields.father && !fields.grandfather && !fields.ggf && !fields.branch){
+      resultsBox.style.display = 'none'; resultsBox.innerHTML=''; return;
+    }
+    const matches = search(fields);
+    if(!matches.length){
+      resultsBox.innerHTML = '<div>لا نتائج — جرّب الاسم فقط، أو الاسم ثم الأب</div>';
+      resultsBox.style.display = 'block';
+      return;
+    }
+    resultsBox.innerHTML = matches.map((n,i) => {
+      const path = ancestorChain(n).join(' ← ');
+      return `<div data-i="${i}">${n.name}<div class="path">${path}</div></div>`;
+    }).join('');
+    resultsBox.style.display = 'block';
+    resultsBox.querySelectorAll('div[data-i]').forEach(elm => {
+      elm.addEventListener('click', () => {
+        const idx = +elm.getAttribute('data-i');
+        revealNode(matches[idx]);
+        resultsBox.style.display = 'none';
+      });
+    });
+  }
+  document.getElementById('searchBtn').addEventListener('click', runSearch);
+  [
+    document.getElementById('searchName'),
+    document.getElementById('searchFather'),
+    document.getElementById('searchGrandfather'),
+    document.getElementById('searchGGFather'),
+    document.getElementById('searchBranch')
+  ].forEach(inp => inp.addEventListener('keydown', e => { if(e.key === 'Enter') runSearch(); }));
+  document.addEventListener('click', (e) => {
+    if(!e.target.closest('.search-panel-wrap')) resultsBox.style.display = 'none';
+  });
+  } // end boot()
+
+  // ---- bootstrap: load the base tree plus any admin-saved additions and
+  // corrections, all as plain static JSON files next to this page, then graft
+  // additions and apply corrections onto the tree BEFORE the first render ----
+  function applyStoredAdditions(list){
+    (list || []).forEach(item => {
+      if(!item || !Array.isArray(item.path) || !item.name) return;
+      if(item.gender !== 'male' && item.gender !== 'female') return;
+      const parent = nodeAtIndexPath(item.path);
+      if(parent) attachChild(parent, item.name, item.gender);
+    });
+  }
+  function applyStoredCorrections(list){
+    (list || []).forEach(item => {
+      if(!item || !Array.isArray(item.path) || !item.name) return;
+      if(item.gender !== 'male' && item.gender !== 'female') return;
+      const node = nodeAtIndexPath(item.path);
+      if(node){ node.name = item.name; node.gender = item.gender; }
+    });
+  }
+  function loadJSON(path){
+    return fetch(path, { cache: 'no-store' }).then(res => {
+      if(!res.ok) throw new Error(path + ': ' + res.status);
+      return res.json();
+    });
+  }
+  Promise.all([
+    loadJSON('data/tree.json'),
+    loadJSON('data/additions.json').catch(() => []),
+    loadJSON('data/corrections.json').catch(() => [])
+  ]).then(([treeData, additions, corrections]) => {
+    data = treeData;
+    augment(data, 0, null);
+    applyStoredAdditions(additions);
+    applyStoredCorrections(corrections);
+    boot();
+  }).catch(err => {
+    console.error('failed to load tree data:', err);
+    document.getElementById('loadNote').textContent = 'تعذر تحميل بيانات الشجرة. تأكد أن data/tree.json موجود بجانب هذه الصفحة.';
+  });
+</script>
+</body>
+</html>

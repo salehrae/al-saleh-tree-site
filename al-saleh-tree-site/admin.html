@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تحكم المشرف — شجرة أسرة الصالح</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#2f8f5e;
+    --gold-dark:#1f6b45;
+    --maroon:#163625;
+    --male:#3f8f68;
+    --female:#c0392b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:0;
+    font-family:'Cairo','Tahoma',sans-serif;
+    background:#eaf5ee;
+    color:#1c2e24;
+  }
+  .wrap{ max-width:560px; margin:0 auto; padding:24px 16px 60px; display:flex; flex-direction:column; gap:18px; }
+  .title-card{
+    text-align:center; margin:0 auto; padding:14px 20px;
+    background:#f7fbf8; border:3px solid var(--gold); border-radius:14px;
+    box-shadow:0 4px 14px rgba(0,0,0,.18); width:100%;
+  }
+  .title-card h1{ margin:0 0 4px; font-size:1.3em; color:var(--maroon); }
+  .title-card p{ margin:0; color:#3f5c4c; font-size:.88em; line-height:1.6; }
+  .title-card a{ color:var(--gold-dark); font-weight:700; }
+
+  .panel{
+    background:#f2f9f4; border:1.5px solid #ddd; border-radius:16px;
+    padding:16px; display:flex; flex-direction:column; gap:10px;
+  }
+  .panel-title{ font-size:1.02em; font-weight:800; color:var(--maroon); margin:0 0 2px; }
+  .field{ display:flex; flex-direction:column; gap:4px; }
+  .field label{ font-size:.82em; color:#3f5c4c; font-weight:700; padding:0 3px; }
+  .field input, .field select{
+    font-family:inherit; font-size:.94em; padding:9px 12px; border-radius:10px;
+    border:1.5px solid #ddd; width:100%; direction:rtl; background:#fff; color:#1c2e24;
+  }
+  .field input::placeholder{ color:#9dbfa9; }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--male); }
+  .subtitle{ font-size:.82em; font-weight:700; color:var(--maroon); margin:8px 0 0; }
+  .note{ font-size:.82em; color:#3f5c4c; line-height:1.7; margin:0; }
+  .note a{ color:var(--gold-dark); }
+  hr.sep{ border:none; border-top:1.5px dashed #cfe0d6; margin:6px 0; }
+
+  .secondary-btn{
+    font-family:inherit; font-size:.9em; cursor:pointer; background:#fff; color:var(--male);
+    border:1.5px solid var(--male); border-radius:10px; padding:10px 12px; font-weight:700;
+  }
+  .secondary-btn:hover{ background:#eafaf1; }
+  .result-list{ max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:5px; }
+  .result-list div{
+    padding:8px 10px; cursor:pointer; border:1px solid #eee; border-radius:8px; font-size:.87em; background:#fff;
+  }
+  .result-list div:hover{ background:#e6f4ea; }
+  .result-list .path{ color:#888; font-size:.78em; margin-top:2px; }
+  .result-list div.selected{ border-color:var(--male); background:#eafaf1; }
+  .selected-info{ font-size:.86em; color:var(--maroon); font-weight:700; min-height:1.3em; }
+  .children-list{ font-size:.84em; color:#3f5c4c; background:#fff; border:1px solid #ddd; border-radius:10px; padding:8px 10px; line-height:1.9; }
+  .children-list b{ color:var(--maroon); }
+  .children-list .tag-f{ color:var(--female); }
+
+  .primary-btn{
+    font-family:inherit; font-weight:800; font-size:.98em; cursor:pointer;
+    background:var(--gold); color:#fff; border:none; padding:11px 14px; border-radius:10px;
+  }
+  .primary-btn:disabled{ background:#b9c9bd; cursor:not-allowed; }
+  .primary-btn:not(:disabled):hover{ background:var(--gold-dark); }
+  .status{ font-size:.86em; min-height:1.3em; line-height:1.6; }
+  .status.error{ color:var(--female); }
+  .status.ok{ color:var(--gold-dark); }
+
+  .blocked-note{
+    font-size:.9em; color:#8a6d3b; background:#fff8e6; border:1.5px solid #f0dca0;
+    border-radius:12px; padding:14px; line-height:1.8;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="title-card">
+    <h1>لوحة تحكم المشرف</h1>
+    <p>إضافة أفراد جدد أو تصحيح أسماء موجودة في شجرة أسرة الصالح. التغييرات تُحفظ مباشرة في مستودع GitHub وتظهر للجميع خلال دقيقة تقريبًا.<br>
+      <a id="backLink" href="index.html">↩ العودة إلى عرض الشجرة الكاملة</a></p>
+  </div>
+
+  <div id="loadingNote" class="blocked-note">جارٍ تحميل بيانات الشجرة…</div>
+
+  <div id="passcodePanel" class="panel" hidden>
+    <div class="field">
+      <label>رمز الوصول في GitHub (Personal Access Token)</label>
+      <input id="githubToken" type="password" placeholder="ghp_... أو github_pat_..." autocomplete="off">
+    </div>
+    <p class="note">
+      يُستخدم الرمز نفسه للإضافة والتصحيح أدناه، ولا يُحفظ في الصفحة — تكتبه في كل مرة تريد فيها الحفظ، تمامًا مثل كلمة المرور سابقًا.
+      أنشئه من <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">إعدادات GitHub</a> (fine-grained token) بصلاحية Contents: Read and write على هذا المستودع فقط.
+    </p>
+  </div>
+
+  <div id="addPanel" class="panel" hidden>
+    <p class="panel-title">١) إضافة فرد جديد (ابن أو بنت)</p>
+
+    <div class="field">
+      <label>اسم الفرد الجديد</label>
+      <input id="personName" type="text" placeholder="الاسم" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>ابن أم بنت؟</label>
+      <select id="gender">
+        <option value="">اختر</option>
+        <option value="male">ابن (ذكر)</option>
+        <option value="female">بنت (أنثى)</option>
+      </select>
+    </div>
+
+    <p class="subtitle">بيانات الأب (لتحديد مكانه بدقة في الشجرة):</p>
+    <div class="field">
+      <label>اسم الأب</label>
+      <input id="fatherName" type="text" placeholder="اسم الأب" autocomplete="off" list="fatherList">
+    </div>
+    <div class="field">
+      <label>اسم الجد</label>
+      <input id="grandfatherName" type="text" placeholder="اختياري" autocomplete="off" list="grandfatherList">
+    </div>
+    <div class="field">
+      <label>اسم الجد الأكبر</label>
+      <input id="greatGrandfatherName" type="text" placeholder="اختياري" autocomplete="off" list="ggfatherList">
+    </div>
+    <div class="field">
+      <label>الفرع الرئيسي</label>
+      <input id="branchName" type="text" placeholder="اختياري" autocomplete="off" list="branchList">
+    </div>
+    <datalist id="fatherList"></datalist>
+    <datalist id="grandfatherList"></datalist>
+    <datalist id="ggfatherList"></datalist>
+    <datalist id="branchList"></datalist>
+
+    <button id="findFatherBtn" type="button" class="secondary-btn">🔎 تحديد الأب</button>
+    <div id="fatherResults" class="result-list"></div>
+    <div id="selectedFatherInfo" class="selected-info"></div>
+    <div id="fatherChildrenList" class="children-list" hidden></div>
+
+    <button id="submitBtn" type="button" class="primary-btn" disabled>إضافة</button>
+    <div id="statusMsg" class="status"></div>
+  </div>
+
+  <div id="correctPanel" class="panel" hidden>
+    <p class="panel-title">٢) تصحيح اسم فرد موجود</p>
+    <p class="note">ابحث عن الفرد ببياناته الحالية، ثم عدّل الاسم أو الجنس واحفظ التصحيح.</p>
+
+    <div class="field">
+      <label>الاسم الحالي</label>
+      <input id="corrPersonName" type="text" placeholder="اسم الفرد" autocomplete="off" list="corrNameList">
+    </div>
+    <div class="field">
+      <label>اسم الأب</label>
+      <input id="corrFatherName" type="text" placeholder="اختياري" autocomplete="off" list="corrFatherList">
+    </div>
+    <div class="field">
+      <label>اسم الجد</label>
+      <input id="corrGrandfatherName" type="text" placeholder="اختياري" autocomplete="off" list="corrGrandfatherList">
+    </div>
+    <div class="field">
+      <label>اسم الجد الأكبر</label>
+      <input id="corrGreatGrandfatherName" type="text" placeholder="اختياري" autocomplete="off" list="corrGgfatherList">
+    </div>
+    <div class="field">
+      <label>الفرع الرئيسي</label>
+      <input id="corrBranchName" type="text" placeholder="اختياري" autocomplete="off" list="corrBranchList">
+    </div>
+    <datalist id="corrNameList"></datalist>
+    <datalist id="corrFatherList"></datalist>
+    <datalist id="corrGrandfatherList"></datalist>
+    <datalist id="corrGgfatherList"></datalist>
+    <datalist id="corrBranchList"></datalist>
+
+    <button id="findPersonBtn" type="button" class="secondary-btn">🔎 بحث</button>
+    <div id="personResults" class="result-list"></div>
+    <div id="selectedPersonInfo" class="selected-info"></div>
+
+    <div id="correctFields" hidden>
+      <hr class="sep">
+      <div class="field">
+        <label>الاسم الصحيح</label>
+        <input id="corrNewName" type="text" placeholder="الاسم بعد التصحيح" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>ابن أم بنت؟</label>
+        <select id="corrNewGender">
+          <option value="male">ابن (ذكر)</option>
+          <option value="female">بنت (أنثى)</option>
+        </select>
+      </div>
+      <button id="correctSubmitBtn" type="button" class="primary-btn">حفظ التصحيح</button>
+    </div>
+    <div id="corrStatusMsg" class="status"></div>
+  </div>
+
+</div>
+
+<script>
+  // ========================================================================
+  // EDIT THESE TWO LINES to match your GitHub repo before you publish.
+  // ========================================================================
+  const GITHUB_OWNER = 'YOUR_GITHUB_USERNAME';
+  const GITHUB_REPO = 'YOUR_REPO_NAME';
+  const GITHUB_BRANCH = 'main';
+  // ========================================================================
+
+  let data; // set once data/tree.json loads
+
+  function augment(node, depth, parent){
+    node._depth = depth;
+    node._parent = parent;
+    node._children = node.children || [];
+    if(depth < 4){
+      node._branchName = null;
+    } else if(depth === 4){
+      node._branchName = node.name;
+    } else {
+      node._branchName = parent._branchName;
+    }
+    node._total = 1;
+    node._children.forEach(c => { augment(c, depth+1, node); node._total += c._total; });
+  }
+
+  const allNodes = [];
+  function collectAll(){
+    allNodes.length = 0;
+    (function collect(n){ allNodes.push(n); n._children.forEach(collect); })(data);
+  }
+
+  function indexPath(n){
+    const path = [];
+    let cur = n;
+    while(cur._parent){
+      path.unshift(cur._parent._children.indexOf(cur));
+      cur = cur._parent;
+    }
+    return path;
+  }
+  function nodeAtIndexPath(path){
+    let node = data;
+    for(const idx of path){
+      if(!node._children || idx < 0 || idx >= node._children.length) return null;
+      node = node._children[idx];
+    }
+    return node;
+  }
+  function attachChild(parent, name, gender){
+    const raw = { name: name, gender: gender };
+    if(!parent.children) parent.children = [];
+    parent.children.push(raw);
+    parent._children = parent.children;
+    augment(raw, parent._depth + 1, parent);
+    let cur = parent;
+    while(cur){ cur._total += raw._total; cur = cur._parent; }
+    return raw;
+  }
+
+  const ARABIC_ALLOWED = /[^؀-ۿݐ-ݿࢠ-ࣿ\s]/g;
+  function arabicOnly(s){ return (s || '').replace(ARABIC_ALLOWED, ''); }
+  function normalizeArabic(s){
+    return arabicOnly(s)
+      .replace(/[ً-ٰٟـ]/g, '')
+      .replace(/[إأآا]/g, 'ا')
+      .replace(/ى/g, 'ي')
+      .replace(/ة/g, 'ه')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  function fieldTerm(id){
+    const raw = document.getElementById(id).value || '';
+    const cleaned = arabicOnly(raw).trim().replace(/^(بن|ابن|بنت)\s+/, '');
+    return normalizeArabic(cleaned);
+  }
+  function ancestorChain(n){
+    const chain = [];
+    let cur = n;
+    while(cur){ chain.push(cur.name); cur = cur._parent; }
+    return chain;
+  }
+  function normalizedChain(n){ return ancestorChain(n).map(normalizeArabic); }
+  function matchScore(name, term){
+    if(name === term) return 0;
+    if(name.startsWith(term)) return 1;
+    if(name.includes(term)) return 2;
+    return null;
+  }
+  function filterCandidates(fields){
+    const { name, father, grandfather, ggf, branch } = fields;
+    return allNodes.filter(n => {
+      const chain = normalizedChain(n);
+      if(name && (!chain[0] || matchScore(chain[0], name) === null)) return false;
+      if(father && (!chain[1] || matchScore(chain[1], father) === null)) return false;
+      if(grandfather && (!chain[2] || matchScore(chain[2], grandfather) === null)) return false;
+      if(ggf && (!chain[3] || matchScore(chain[3], ggf) === null)) return false;
+      if(branch){
+        const bn = n._branchName ? normalizeArabic(n._branchName) : '';
+        if(!bn || matchScore(bn, branch) === null) return false;
+      }
+      return true;
+    });
+  }
+  function search(fields){
+    const { name, father, grandfather, ggf, branch } = fields;
+    if(!name && !father && !grandfather && !ggf && !branch) return [];
+    let scored = filterCandidates(fields).map(n => {
+      const chain = normalizedChain(n);
+      let total = 0;
+      if(name) total += matchScore(chain[0], name);
+      if(father) total += matchScore(chain[1], father);
+      if(grandfather) total += matchScore(chain[2], grandfather);
+      if(ggf) total += matchScore(chain[3], ggf);
+      if(branch) total += matchScore(normalizeArabic(n._branchName), branch);
+      return { n, s: total };
+    });
+    if(!scored.length){
+      const terms = [name, father, grandfather, ggf].filter(Boolean);
+      scored = allNodes.map(n => {
+        const chain = normalizedChain(n);
+        const ok = terms.every(t => chain.some(part => part.includes(t)));
+        if(!ok) return null;
+        if(branch){
+          const bn = n._branchName ? normalizeArabic(n._branchName) : '';
+          if(!bn.includes(branch)) return null;
+        }
+        return { n, s: 3 };
+      }).filter(Boolean);
+    }
+    scored.sort((a,b) => a.s - b.s || a.n.name.localeCompare(b.n.name, 'ar'));
+    return scored.slice(0, 30).map(x => x.n);
+  }
+  function setDatalist(el, values){
+    const uniq = [...new Set(values.filter(Boolean))].sort((a,b) => a.localeCompare(b, 'ar'));
+    el.innerHTML = uniq.map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`).join('');
+  }
+
+  // ========================================================================
+  // GitHub Contents API — read/append-to the two small JSON "logs" that the
+  // public page also reads. Each write re-fetches the file's current sha
+  // first (so GitHub can detect a conflicting concurrent edit) and retries
+  // once if that happens.
+  // ========================================================================
+  function githubApiUrl(path){
+    return `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
+  }
+  async function githubGetJsonFile(path, token){
+    const res = await fetch(`${githubApiUrl(path)}?ref=${GITHUB_BRANCH}`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' }
+    });
+    if(!res.ok){
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message || `تعذر قراءة الملف (${res.status})`);
+    }
+    const json = await res.json();
+    const text = decodeURIComponent(escape(atob(json.content.replace(/\n/g, ''))));
+    return { sha: json.sha, data: JSON.parse(text) };
+  }
+  async function githubPutJsonFile(path, token, arr, sha, message){
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(arr, null, 2))));
+    const res = await fetch(githubApiUrl(path), {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message, content, sha, branch: GITHUB_BRANCH })
+    });
+    if(!res.ok){
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message || `تعذر الحفظ (${res.status})`);
+    }
+  }
+  async function appendToGithubArray(path, token, entry, message){
+    let lastErr;
+    for(let attempt = 0; attempt < 3; attempt++){
+      const { sha, data: arr } = await githubGetJsonFile(path, token);
+      const next = Array.isArray(arr) ? arr.slice() : [];
+      next.push(entry);
+      try {
+        await githubPutJsonFile(path, token, next, sha, message);
+        return;
+      } catch(err){
+        lastErr = err;
+        // likely a sha conflict from a concurrent edit — loop and retry with a fresh sha
+      }
+    }
+    throw lastErr;
+  }
+
+  // =========================================================================
+  // Panel 1: add a new person
+  // =========================================================================
+  const fatherListEl = document.getElementById('fatherList');
+  const grandfatherListEl = document.getElementById('grandfatherList');
+  const ggfatherListEl = document.getElementById('ggfatherList');
+  const branchListEl = document.getElementById('branchList');
+
+  function panelFields(){
+    return {
+      name: fieldTerm('fatherName'),
+      father: fieldTerm('grandfatherName'),
+      grandfather: fieldTerm('greatGrandfatherName'),
+      ggf: '',
+      branch: fieldTerm('branchName')
+    };
+  }
+  function refreshGrandfatherOptions(){
+    const f = panelFields();
+    setDatalist(grandfatherListEl, filterCandidates({ name: f.name }).map(n => ancestorChain(n)[1]));
+  }
+  function refreshGreatGrandfatherOptions(){
+    const f = panelFields();
+    setDatalist(ggfatherListEl, filterCandidates({ name: f.name, father: f.father }).map(n => ancestorChain(n)[2]));
+  }
+  function refreshBranchOptions(){
+    const f = panelFields();
+    setDatalist(branchListEl, filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather }).map(n => n._branchName));
+  }
+
+  let selectedFatherNode = null;
+  const submitBtn = document.getElementById('submitBtn');
+  const selectedFatherInfo = document.getElementById('selectedFatherInfo');
+  const fatherChildrenList = document.getElementById('fatherChildrenList');
+
+  function renderFatherChildren(node){
+    fatherChildrenList.hidden = false;
+    if(!node._children.length){
+      fatherChildrenList.innerHTML = `لا يوجد أبناء أو بنات مسجلون حالياً لدى <b>${node.name}</b>.`;
+      return;
+    }
+    const items = node._children.map(c => {
+      return c.gender === 'female' ? `<span class="tag-f">${c.name} (بنت)</span>` : `${c.name} (ابن)`;
+    }).join('، ');
+    fatherChildrenList.innerHTML = `الأبناء/البنات الحاليون لدى <b>${node.name}</b> (${node._children.length}): ${items}`;
+  }
+
+  function clearFatherSelection(){
+    selectedFatherNode = null;
+    submitBtn.disabled = true;
+    selectedFatherInfo.textContent = '';
+    fatherChildrenList.hidden = true;
+  }
+  document.getElementById('fatherName').addEventListener('input', () => { refreshGrandfatherOptions(); clearFatherSelection(); });
+  document.getElementById('grandfatherName').addEventListener('input', () => { refreshGreatGrandfatherOptions(); clearFatherSelection(); });
+  document.getElementById('greatGrandfatherName').addEventListener('input', () => { refreshBranchOptions(); clearFatherSelection(); });
+  document.getElementById('branchName').addEventListener('input', clearFatherSelection);
+
+  const fatherResultsBox = document.getElementById('fatherResults');
+  function findFather(){
+    clearFatherSelection();
+    const fields = panelFields();
+    if(!fields.name && !fields.father && !fields.grandfather && !fields.branch){
+      fatherResultsBox.innerHTML = '<div>أدخل اسم الأب على الأقل</div>';
+      return;
+    }
+    const matches = search(fields);
+    if(!matches.length){
+      fatherResultsBox.innerHTML = '<div>لا يوجد أب مطابق لهذه البيانات</div>';
+      return;
+    }
+    fatherResultsBox.innerHTML = matches.map((n,i) => {
+      const path = ancestorChain(n).join(' ← ');
+      return `<div data-i="${i}">${n.name}<div class="path">${path}</div></div>`;
+    }).join('');
+    fatherResultsBox.querySelectorAll('div[data-i]').forEach(elm => {
+      elm.addEventListener('click', () => {
+        const idx = +elm.getAttribute('data-i');
+        selectedFatherNode = matches[idx];
+        fatherResultsBox.querySelectorAll('div[data-i]').forEach(x => x.classList.remove('selected'));
+        elm.classList.add('selected');
+        selectedFatherInfo.textContent = 'الأب المحدد: ' + ancestorChain(selectedFatherNode).join(' ← ');
+        renderFatherChildren(selectedFatherNode);
+        submitBtn.disabled = false;
+      });
+    });
+  }
+  document.getElementById('findFatherBtn').addEventListener('click', findFather);
+
+  const statusEl = document.getElementById('statusMsg');
+  function showStatus(msg, isError){
+    statusEl.textContent = msg;
+    statusEl.className = 'status ' + (isError ? 'error' : 'ok');
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    const token = (document.getElementById('githubToken').value || '').trim();
+    const name = (document.getElementById('personName').value || '').trim();
+    const gender = document.getElementById('gender').value;
+    if(!token){ showStatus('أدخل رمز الوصول في GitHub.', true); return; }
+    if(!selectedFatherNode){ showStatus('حدد الأب أولاً من نتائج "تحديد الأب".', true); return; }
+    if(!name){ showStatus('أدخل اسم الفرد الجديد.', true); return; }
+    if(gender !== 'male' && gender !== 'female'){ showStatus('حدد: ابن أم بنت.', true); return; }
+
+    const dup = selectedFatherNode._children.some(c => normalizeArabic(c.name) === normalizeArabic(name));
+    if(dup && !confirm(`يوجد بالفعل فرد باسم "${name}" لدى ${selectedFatherNode.name}. هل تريد الإضافة رغم ذلك؟`)){
+      return;
+    }
+
+    const path = indexPath(selectedFatherNode);
+    const fatherRef = selectedFatherNode;
+    submitBtn.disabled = true;
+    const prevLabel = submitBtn.textContent;
+    submitBtn.textContent = 'جارٍ الإضافة...';
+
+    try {
+      await appendToGithubArray(
+        'data/additions.json', token,
+        { path, name, gender, added_at: new Date().toISOString() },
+        `Add ${name} under ${fatherRef.name}`
+      );
+      attachChild(fatherRef, name, gender);
+      collectAll();
+      refreshGrandfatherOptions(); refreshGreatGrandfatherOptions(); refreshBranchOptions();
+      renderFatherChildren(fatherRef);
+      refreshCorrFatherOptions(); refreshCorrGrandfatherOptions(); refreshCorrGgfOptions(); refreshCorrBranchOptions();
+      setDatalist(corrNameListEl, allNodes.map(n => n.name));
+      showStatus(`تمت إضافة "${name}" إلى ${fatherRef.name} بنجاح. ستظهر للجميع خلال دقيقة تقريبًا.`, false);
+      document.getElementById('personName').value = '';
+      document.getElementById('gender').value = '';
+    } catch(err){
+      showStatus('تعذّرت الإضافة: ' + (err && err.message ? err.message : err), true);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = prevLabel;
+    }
+  });
+
+  // =========================================================================
+  // Panel 2: correct an existing person's name/gender
+  // =========================================================================
+  const corrNameListEl = document.getElementById('corrNameList');
+  const corrFatherListEl = document.getElementById('corrFatherList');
+  const corrGrandfatherListEl = document.getElementById('corrGrandfatherList');
+  const corrGgfatherListEl = document.getElementById('corrGgfatherList');
+  const corrBranchListEl = document.getElementById('corrBranchList');
+
+  function corrPanelFields(){
+    return {
+      name: fieldTerm('corrPersonName'),
+      father: fieldTerm('corrFatherName'),
+      grandfather: fieldTerm('corrGrandfatherName'),
+      ggf: fieldTerm('corrGreatGrandfatherName'),
+      branch: fieldTerm('corrBranchName')
+    };
+  }
+  function refreshCorrFatherOptions(){
+    const f = corrPanelFields();
+    setDatalist(corrFatherListEl, filterCandidates({ name: f.name }).map(n => ancestorChain(n)[1]));
+  }
+  function refreshCorrGrandfatherOptions(){
+    const f = corrPanelFields();
+    setDatalist(corrGrandfatherListEl, filterCandidates({ name: f.name, father: f.father }).map(n => ancestorChain(n)[2]));
+  }
+  function refreshCorrGgfOptions(){
+    const f = corrPanelFields();
+    setDatalist(corrGgfatherListEl, filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather }).map(n => ancestorChain(n)[3]));
+  }
+  function refreshCorrBranchOptions(){
+    const f = corrPanelFields();
+    setDatalist(corrBranchListEl, filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather, ggf: f.ggf }).map(n => n._branchName));
+  }
+
+  let selectedPersonNode = null;
+  const selectedPersonInfo = document.getElementById('selectedPersonInfo');
+  const correctFields = document.getElementById('correctFields');
+  const correctSubmitBtn = document.getElementById('correctSubmitBtn');
+
+  function clearPersonSelection(){
+    selectedPersonNode = null;
+    correctFields.hidden = true;
+    selectedPersonInfo.textContent = '';
+  }
+  document.getElementById('corrPersonName').addEventListener('input', () => { refreshCorrFatherOptions(); clearPersonSelection(); });
+  document.getElementById('corrFatherName').addEventListener('input', () => { refreshCorrGrandfatherOptions(); clearPersonSelection(); });
+  document.getElementById('corrGrandfatherName').addEventListener('input', () => { refreshCorrGgfOptions(); clearPersonSelection(); });
+  document.getElementById('corrGreatGrandfatherName').addEventListener('input', () => { refreshCorrBranchOptions(); clearPersonSelection(); });
+  document.getElementById('corrBranchName').addEventListener('input', clearPersonSelection);
+
+  const personResultsBox = document.getElementById('personResults');
+  function findPerson(){
+    clearPersonSelection();
+    const fields = corrPanelFields();
+    const matches = search(fields);
+    if(!matches.length){
+      personResultsBox.innerHTML = '<div>لا يوجد فرد مطابق لهذه البيانات</div>';
+      return;
+    }
+    personResultsBox.innerHTML = matches.map((n,i) => {
+      const path = ancestorChain(n).join(' ← ');
+      return `<div data-i="${i}">${n.name}<div class="path">${path}</div></div>`;
+    }).join('');
+    personResultsBox.querySelectorAll('div[data-i]').forEach(elm => {
+      elm.addEventListener('click', () => {
+        const idx = +elm.getAttribute('data-i');
+        selectedPersonNode = matches[idx];
+        personResultsBox.querySelectorAll('div[data-i]').forEach(x => x.classList.remove('selected'));
+        elm.classList.add('selected');
+        selectedPersonInfo.textContent = 'الفرد المحدد: ' + ancestorChain(selectedPersonNode).join(' ← ');
+        document.getElementById('corrNewName').value = selectedPersonNode.name;
+        document.getElementById('corrNewGender').value = selectedPersonNode.gender === 'female' ? 'female' : 'male';
+        correctFields.hidden = false;
+      });
+    });
+  }
+  document.getElementById('findPersonBtn').addEventListener('click', findPerson);
+
+  const corrStatusEl = document.getElementById('corrStatusMsg');
+  function showCorrStatus(msg, isError){
+    corrStatusEl.textContent = msg;
+    corrStatusEl.className = 'status ' + (isError ? 'error' : 'ok');
+  }
+
+  correctSubmitBtn.addEventListener('click', async () => {
+    const token = (document.getElementById('githubToken').value || '').trim();
+    const newName = (document.getElementById('corrNewName').value || '').trim();
+    const newGender = document.getElementById('corrNewGender').value;
+    if(!token){ showCorrStatus('أدخل رمز الوصول في GitHub.', true); return; }
+    if(!selectedPersonNode){ showCorrStatus('اختر الفرد أولاً من نتائج البحث.', true); return; }
+    if(!newName){ showCorrStatus('أدخل الاسم الصحيح.', true); return; }
+    if(newGender !== 'male' && newGender !== 'female'){ showCorrStatus('حدد: ابن أم بنت.', true); return; }
+
+    const path = indexPath(selectedPersonNode);
+    const personRef = selectedPersonNode;
+    correctSubmitBtn.disabled = true;
+    const prevLabel = correctSubmitBtn.textContent;
+    correctSubmitBtn.textContent = 'جارٍ الحفظ...';
+
+    try {
+      await appendToGithubArray(
+        'data/corrections.json', token,
+        { path, name: newName, gender: newGender, corrected_at: new Date().toISOString() },
+        `Correct ${personRef.name} -> ${newName}`
+      );
+      const oldName = personRef.name;
+      personRef.name = newName;
+      personRef.gender = newGender;
+      setDatalist(corrNameListEl, allNodes.map(n => n.name));
+      selectedPersonInfo.textContent = 'الفرد المحدد: ' + ancestorChain(personRef).join(' ← ');
+      showCorrStatus(`تم تصحيح "${oldName}" إلى "${newName}" بنجاح. سيظهر للجميع خلال دقيقة تقريبًا.`, false);
+    } catch(err){
+      showCorrStatus('تعذّر الحفظ: ' + (err && err.message ? err.message : err), true);
+    } finally {
+      correctSubmitBtn.disabled = false;
+      correctSubmitBtn.textContent = prevLabel;
+    }
+  });
+
+  // =========================================================================
+  // Bootstrap: load the base tree, graft stored additions, apply corrections,
+  // then enable both panels.
+  // =========================================================================
+  function applyStoredAdditions(list){
+    (list || []).forEach(item => {
+      if(!item || !Array.isArray(item.path) || !item.name) return;
+      if(item.gender !== 'male' && item.gender !== 'female') return;
+      const parent = nodeAtIndexPath(item.path);
+      if(parent) attachChild(parent, item.name, item.gender);
+    });
+  }
+  function applyStoredCorrections(list){
+    (list || []).forEach(item => {
+      if(!item || !Array.isArray(item.path) || !item.name) return;
+      if(item.gender !== 'male' && item.gender !== 'female') return;
+      const node = nodeAtIndexPath(item.path);
+      if(node){ node.name = item.name; node.gender = item.gender; }
+    });
+  }
+  function loadJSON(path){
+    return fetch(path, { cache: 'no-store' }).then(res => {
+      if(!res.ok) throw new Error(path + ': ' + res.status);
+      return res.json();
+    });
+  }
+  Promise.all([
+    loadJSON('data/tree.json'),
+    loadJSON('data/additions.json').catch(() => []),
+    loadJSON('data/corrections.json').catch(() => [])
+  ]).then(([treeData, additions, corrections]) => {
+    data = treeData;
+    augment(data, 0, null);
+    applyStoredAdditions(additions);
+    applyStoredCorrections(corrections);
+    collectAll();
+    refreshGrandfatherOptions(); refreshGreatGrandfatherOptions(); refreshBranchOptions();
+    refreshCorrFatherOptions(); refreshCorrGrandfatherOptions(); refreshCorrGgfOptions(); refreshCorrBranchOptions();
+    setDatalist(corrNameListEl, allNodes.map(n => n.name));
+    document.getElementById('loadingNote').hidden = true;
+    document.getElementById('passcodePanel').hidden = false;
+    document.getElementById('addPanel').hidden = false;
+    document.getElementById('correctPanel').hidden = false;
+  }).catch(err => {
+    console.error('failed to load tree data:', err);
+    document.getElementById('loadingNote').textContent = 'تعذر تحميل بيانات الشجرة. تأكد أن data/tree.json موجود بجانب هذه الصفحة.';
+  });
+</script>
+</body>
+</html>
