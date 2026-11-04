@@ -425,16 +425,17 @@
       return clipId;
     }
 
-    // Male names: one rotated line, like before, but siblings in the same
-    // ring alternate between three radii within the ring's own band (near
-    // its inner edge / middle / outer edge). Adjacent narrow wedges then no
-    // longer place their labels on the exact same radius, so they stop
-    // crowding into each other even when the wedges themselves are thin.
-    function renderStaggeredLabel(n, r0, r1, a0, a1, midA, tier){
-      const angWidth = a1 - a0;
+    // Every name renders as a single, whole, properly-shaped word — never
+    // split into letters, so Arabic joining always stays intact. The text
+    // is rotated to read along the radius (vertically, outward from the
+    // center), and the space it must fit inside is the RING'S OWN
+    // THICKNESS (r1-r0), not the angular width of the wedge — because once
+    // the text is rotated to point along the spoke, thickness is the axis
+    // it actually runs along. labelR lets callers place a label at any
+    // radius inside the ring (used for the male top/middle/bottom stagger
+    // below); a clip-path on the wedge itself is kept as a hard backstop.
+    function renderRadialLabel(n, r0, r1, a0, a1, midA, labelR){
       const band = r1 - r0;
-      const tierFrac = [0.24, 0.5, 0.76][tier % 3];
-      const labelR = r0 + band * tierFrac;
       const p = polarPoint(cx, cy, labelR, midA);
       let rotDeg = (midA * 180 / Math.PI) - 90;
       if(midA > Math.PI){ rotDeg += 180; }
@@ -447,7 +448,7 @@
       text.setAttribute('transform', `rotate(${rotDeg.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)})`);
       text.textContent = n.name;
       circSvgEl.appendChild(text);
-      const available = angWidth * labelR * 0.88;
+      const available = band * 0.85;
       let bbox = text.getBBox();
       if(bbox.width > available && n.name.length > 2){
         let lo = 1, hi = n.name.length - 1, best = n.name.slice(0, 1) + '…';
@@ -468,30 +469,6 @@
       text.setAttribute('clip-path', `url(#${makeClip(r0, r1, a0, a1)})`);
     }
 
-    // Female names: stacked single letters running outward along the
-    // wedge's own radius, so the only width that matters is a single
-    // character's — it always fits, however narrow the wedge is.
-    function renderColumnLabel(n, r0, r1, midA){
-      const chars = Array.from(n.name);
-      const charStep = CIRC_LABEL_FONT_SIZE * 1.15;
-      const pad = 3;
-      const maxChars = Math.max(1, Math.floor((r1 - r0 - pad * 2) / charStep));
-      const truncated = chars.length > maxChars;
-      const shown = truncated ? chars.slice(0, Math.max(1, maxChars)) : chars;
-      shown.forEach((ch, i) => {
-        const r = r0 + pad + charStep * (i + 0.5);
-        const p = polarPoint(cx, cy, r, midA);
-        const t = document.createElementNS(svgNS, 'text');
-        t.setAttribute('class', 'circ-label');
-        t.setAttribute('x', p.x.toFixed(2));
-        t.setAttribute('y', p.y.toFixed(2));
-        t.setAttribute('text-anchor', 'middle');
-        t.setAttribute('dominant-baseline', 'middle');
-        t.textContent = (truncated && i === shown.length - 1) ? '…' : ch;
-        circSvgEl.appendChild(t);
-      });
-    }
-
     function addArc(n, r0, r1, a0, a1, ring, siblingIdx){
       if(n.gender === 'female') femaleCount++; else maleCount++;
       deepestRendered = Math.max(deepestRendered, ring);
@@ -506,10 +483,12 @@
       const angWidth = a1 - a0;
       if(angWidth > 0.05){
         const midA = (a0 + a1) / 2;
+        const band = r1 - r0;
         if(n.gender === 'female'){
-          renderColumnLabel(n, r0, r1, midA);
+          renderRadialLabel(n, r0, r1, a0, a1, midA, r0 + band * 0.5);
         } else {
-          renderStaggeredLabel(n, r0, r1, a0, a1, midA, siblingIdx || 0);
+          const tierFrac = [0.24, 0.5, 0.76][(siblingIdx || 0) % 3];
+          renderRadialLabel(n, r0, r1, a0, a1, midA, r0 + band * tierFrac);
         }
       }
 
