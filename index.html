@@ -227,7 +227,7 @@
   .circ-arc.male{ fill:#bcd9ef; }
   .circ-arc.female{ fill:#f6c9d3; }
   .circ-arc:hover{ filter:brightness(0.95); }
-  .circ-label{ font-family:'Cairo','Tahoma',sans-serif; font-size:13px; fill:#1c2e24; pointer-events:none; }
+  .circ-label{ font-family:'Cairo','Tahoma',sans-serif; font-size:10px; fill:#1c2e24; pointer-events:none; }
   .circ-center{ cursor:pointer; }
   .circ-center-circle{ fill:var(--male); stroke:#fff; stroke-width:3; }
   .circ-center-name{ font-family:'Cairo','Tahoma',sans-serif; font-weight:800; fill:#fff; font-size:17px; }
@@ -349,6 +349,7 @@
   let circMaxDepth = 4;
   const CIRC_MAX_RINGS = 9;
   const CIRC_MAX_OUTER = 300; // outer edge radius the rings must fit inside, in viewBox units
+  const CIRC_LABEL_FONT_SIZE = 10; // kept in sync with the .circ-label font-size in <style>, used to size the female letter-columns
   let hideFemales = false;
   // The chart measures label widths with getBBox() to decide how much of
   // each name fits in its wedge, but Cairo's glyphs are noticeably wider
@@ -413,7 +414,85 @@
 
     let maleCount = 0, femaleCount = 0, deepestRendered = 0;
 
-    function addArc(n, r0, r1, a0, a1, ring){
+    function makeClip(r0, r1, a0, a1){
+      const clipId = 'circClip' + (clipCounter++);
+      const clipPath = document.createElementNS(svgNS, 'clipPath');
+      clipPath.setAttribute('id', clipId);
+      const clipShape = document.createElementNS(svgNS, 'path');
+      clipShape.setAttribute('d', arcPath(cx, cy, r0, r1, a0, a1));
+      clipPath.appendChild(clipShape);
+      defsEl.appendChild(clipPath);
+      return clipId;
+    }
+
+    // Male names: one rotated line, like before, but siblings in the same
+    // ring alternate between three radii within the ring's own band (near
+    // its inner edge / middle / outer edge). Adjacent narrow wedges then no
+    // longer place their labels on the exact same radius, so they stop
+    // crowding into each other even when the wedges themselves are thin.
+    function renderStaggeredLabel(n, r0, r1, a0, a1, midA, tier){
+      const angWidth = a1 - a0;
+      const band = r1 - r0;
+      const tierFrac = [0.24, 0.5, 0.76][tier % 3];
+      const labelR = r0 + band * tierFrac;
+      const p = polarPoint(cx, cy, labelR, midA);
+      let rotDeg = (midA * 180 / Math.PI) - 90;
+      if(midA > Math.PI){ rotDeg += 180; }
+      const text = document.createElementNS(svgNS, 'text');
+      text.setAttribute('class', 'circ-label');
+      text.setAttribute('x', p.x.toFixed(2));
+      text.setAttribute('y', p.y.toFixed(2));
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'middle');
+      text.setAttribute('transform', `rotate(${rotDeg.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)})`);
+      text.textContent = n.name;
+      circSvgEl.appendChild(text);
+      const available = angWidth * labelR * 0.88;
+      let bbox = text.getBBox();
+      if(bbox.width > available && n.name.length > 2){
+        let lo = 1, hi = n.name.length - 1, best = n.name.slice(0, 1) + '…';
+        while(lo <= hi){
+          const mid = Math.ceil((lo + hi) / 2);
+          const candidate = n.name.slice(0, mid) + '…';
+          text.textContent = candidate;
+          if(text.getBBox().width <= available){ best = candidate; lo = mid + 1; }
+          else { hi = mid - 1; }
+        }
+        text.textContent = best;
+        bbox = text.getBBox();
+      }
+      if(bbox.width > available && available < 8){
+        text.remove();
+        return;
+      }
+      text.setAttribute('clip-path', `url(#${makeClip(r0, r1, a0, a1)})`);
+    }
+
+    // Female names: stacked single letters running outward along the
+    // wedge's own radius, so the only width that matters is a single
+    // character's — it always fits, however narrow the wedge is.
+    function renderColumnLabel(n, r0, r1, midA){
+      const chars = Array.from(n.name);
+      const charStep = CIRC_LABEL_FONT_SIZE * 1.15;
+      const pad = 3;
+      const maxChars = Math.max(1, Math.floor((r1 - r0 - pad * 2) / charStep));
+      const truncated = chars.length > maxChars;
+      const shown = truncated ? chars.slice(0, Math.max(1, maxChars)) : chars;
+      shown.forEach((ch, i) => {
+        const r = r0 + pad + charStep * (i + 0.5);
+        const p = polarPoint(cx, cy, r, midA);
+        const t = document.createElementNS(svgNS, 'text');
+        t.setAttribute('class', 'circ-label');
+        t.setAttribute('x', p.x.toFixed(2));
+        t.setAttribute('y', p.y.toFixed(2));
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('dominant-baseline', 'middle');
+        t.textContent = (truncated && i === shown.length - 1) ? '…' : ch;
+        circSvgEl.appendChild(t);
+      });
+    }
+
+    function addArc(n, r0, r1, a0, a1, ring, siblingIdx){
       if(n.gender === 'female') femaleCount++; else maleCount++;
       deepestRendered = Math.max(deepestRendered, ring);
       const path = document.createElementNS(svgNS, 'path');
@@ -425,54 +504,12 @@
       circSvgEl.appendChild(path);
 
       const angWidth = a1 - a0;
-      if(angWidth > 0.12){
+      if(angWidth > 0.05){
         const midA = (a0 + a1) / 2;
-        const midR = (r0 + r1) / 2;
-        const p = polarPoint(cx, cy, midR, midA);
-        let rotDeg = (midA * 180 / Math.PI) - 90;
-        if(midA > Math.PI){ rotDeg += 180; }
-        const text = document.createElementNS(svgNS, 'text');
-        text.setAttribute('class', 'circ-label');
-        text.setAttribute('x', p.x.toFixed(2));
-        text.setAttribute('y', p.y.toFixed(2));
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('dominant-baseline', 'middle');
-        text.setAttribute('transform', `rotate(${rotDeg.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)})`);
-        text.textContent = n.name;
-        circSvgEl.appendChild(text);
-        // fit the label to the wedge's actual arc length, measuring the real
-        // rendered glyph width rather than guessing from character count
-        // (Arabic letterforms vary a lot in width, so a fixed divisor either
-        // truncates text that would have fit, or overflows into neighbors)
-        const available = angWidth * midR * 0.86;
-        let bbox = text.getBBox();
-        if(bbox.width > available && n.name.length > 2){
-          let lo = 1, hi = n.name.length - 1, best = n.name.slice(0, 1) + '…';
-          while(lo <= hi){
-            const mid = Math.ceil((lo + hi) / 2);
-            const candidate = n.name.slice(0, mid) + '…';
-            text.textContent = candidate;
-            if(text.getBBox().width <= available){ best = candidate; lo = mid + 1; }
-            else { hi = mid - 1; }
-          }
-          text.textContent = best;
-          bbox = text.getBBox();
-        }
-        if(bbox.width > available && available < 10){
-          text.remove();
+        if(n.gender === 'female'){
+          renderColumnLabel(n, r0, r1, midA);
         } else {
-          // Belt-and-suspenders: clip the label to its own wedge shape, so
-          // even if the width estimate above is slightly off (a font still
-          // loading, a browser quirk), the glyphs can never visually spill
-          // into a neighboring wedge — they are simply cut at the boundary.
-          const clipId = 'circClip' + (clipCounter++);
-          const clipPath = document.createElementNS(svgNS, 'clipPath');
-          clipPath.setAttribute('id', clipId);
-          const clipShape = document.createElementNS(svgNS, 'path');
-          clipShape.setAttribute('d', arcPath(cx, cy, r0, r1, a0, a1));
-          clipPath.appendChild(clipShape);
-          defsEl.appendChild(clipPath);
-          text.setAttribute('clip-path', `url(#${clipId})`);
+          renderStaggeredLabel(n, r0, r1, a0, a1, midA, siblingIdx || 0);
         }
       }
 
@@ -480,9 +517,9 @@
       if(ring < depth && kids.length){
         const total = kids.reduce((s,c) => s + c._total, 0) || 1;
         let a = a0;
-        kids.forEach(c => {
+        kids.forEach((c, idx) => {
           const span = (a1 - a0) * (c._total / total);
-          addArc(c, r1, r1 + ringThickness, a, a + span, ring + 1);
+          addArc(c, r1, r1 + ringThickness, a, a + span, ring + 1, idx);
           a += span;
         });
       }
@@ -492,9 +529,9 @@
     if(rootKids.length){
       const total = rootKids.reduce((s,c) => s + c._total, 0) || 1;
       let a = 0;
-      rootKids.forEach(c => {
+      rootKids.forEach((c, idx) => {
         const span = 2 * Math.PI * (c._total / total);
-        addArc(c, centerR, centerR + ringThickness, a, a + span, 1);
+        addArc(c, centerR, centerR + ringThickness, a, a + span, 1, idx);
         a += span;
       });
     }
