@@ -67,7 +67,19 @@
   .search-panel{
     display:flex; flex-direction:column; align-items:stretch; gap:8px;
   }
-  .search-field{ display:flex; flex-direction:column; gap:4px; }
+  .search-field{ display:flex; flex-direction:column; gap:4px; position:relative; }
+  .suggest-box{
+    position:absolute; top:100%; right:0; left:0; z-index:30; margin-top:4px;
+    background:#fff; border:1.5px solid #ddd; border-radius:10px;
+    max-height:220px; overflow-y:auto; display:none;
+    box-shadow:0 6px 18px rgba(0,0,0,.18);
+  }
+  .suggest-box.open{ display:block; }
+  .suggest-box div{ padding:10px 12px; font-size:.9em; cursor:pointer; border-bottom:1px solid #f1f1f1; }
+  .suggest-box div:last-child{ border-bottom:none; }
+  .suggest-box div:hover{ background:#e6f4ea; }
+  .suggest-box div.empty{ color:#999; cursor:default; }
+  .suggest-box div.empty:hover{ background:#fff; }
   .search-field label{ font-size:.78em; color:#3f5c4c; font-weight:700; padding:0 3px; }
   .search-field input{
     font-family:inherit; font-size:.9em; padding:8px 12px; border-radius:10px;
@@ -214,29 +226,29 @@
           <div class="search-panel">
             <div class="search-field">
               <label>الاسم</label>
-              <input id="searchName" type="text" placeholder="اسم الفرد" autocomplete="off" list="nameList">
+              <input id="searchName" type="text" placeholder="اسم الفرد" autocomplete="off">
+              <div class="suggest-box" id="nameSuggestBox"></div>
             </div>
             <div class="search-field">
               <label>اسم الأب</label>
-              <input id="searchFather" type="text" placeholder="اختياري" autocomplete="off" list="fatherList">
+              <input id="searchFather" type="text" placeholder="اختياري" autocomplete="off">
+              <div class="suggest-box" id="fatherSuggestBox"></div>
             </div>
             <div class="search-field">
               <label>اسم الجد</label>
-              <input id="searchGrandfather" type="text" placeholder="اختياري" autocomplete="off" list="grandfatherList">
+              <input id="searchGrandfather" type="text" placeholder="اختياري" autocomplete="off">
+              <div class="suggest-box" id="grandfatherSuggestBox"></div>
             </div>
             <div class="search-field">
               <label>اسم الجد الأكبر</label>
-              <input id="searchGGFather" type="text" placeholder="اختياري" autocomplete="off" list="ggfatherList">
+              <input id="searchGGFather" type="text" placeholder="اختياري" autocomplete="off">
+              <div class="suggest-box" id="ggfatherSuggestBox"></div>
             </div>
             <div class="search-field">
               <label>الفرع الرئيسي</label>
-              <input id="searchBranch" type="text" placeholder="اختياري" autocomplete="off" list="branchList">
+              <input id="searchBranch" type="text" placeholder="اختياري" autocomplete="off">
+              <div class="suggest-box" id="branchSuggestBox"></div>
             </div>
-            <datalist id="nameList"></datalist>
-            <datalist id="fatherList"></datalist>
-            <datalist id="grandfatherList"></datalist>
-            <datalist id="ggfatherList"></datalist>
-            <datalist id="branchList"></datalist>
             <button id="searchBtn" type="button"><span class="ic">🔍</span> بحث</button>
             <div id="searchResults"></div>
           </div>
@@ -516,37 +528,71 @@
     scored.sort((a,b) => a.s - b.s || a.n.name.localeCompare(b.n.name, 'ar'));
     return scored.slice(0, 30).map(x => x.n);
   }
-  function setDatalist(el, values){
-    const uniq = [...new Set(values.filter(Boolean))].sort((a,b) => a.localeCompare(b, 'ar'));
-    el.innerHTML = uniq.map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`).join('');
+  // ---- tap/click-friendly suggestion dropdowns (works the same on phones
+  // and computers — native <datalist> popups are unreliable on mobile
+  // browsers, especially iOS Safari, so we build our own) ----
+  const fieldOptionsCache = {};
+  function setFieldOptions(key, values){
+    fieldOptionsCache[key] = [...new Set(values.filter(Boolean))].sort((a,b) => a.localeCompare(b, 'ar'));
   }
-  const nameListEl = document.getElementById('nameList');
-  const fatherListEl = document.getElementById('fatherList');
-  const grandfatherListEl = document.getElementById('grandfatherList');
-  const ggfatherListEl = document.getElementById('ggfatherList');
-  const branchListEl = document.getElementById('branchList');
-
   function refreshFatherOptions(){
     const f = currentFields();
-    setDatalist(fatherListEl, filterCandidates({ name: f.name }).map(n => ancestorChain(n)[1]));
+    setFieldOptions('father', filterCandidates({ name: f.name }).map(n => ancestorChain(n)[1]));
   }
   function refreshGrandfatherOptions(){
     const f = currentFields();
-    setDatalist(grandfatherListEl, filterCandidates({ name: f.name, father: f.father }).map(n => ancestorChain(n)[2]));
+    setFieldOptions('grandfather', filterCandidates({ name: f.name, father: f.father }).map(n => ancestorChain(n)[2]));
   }
   function refreshGgfOptions(){
     const f = currentFields();
-    setDatalist(ggfatherListEl, filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather }).map(n => ancestorChain(n)[3]));
+    setFieldOptions('ggf', filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather }).map(n => ancestorChain(n)[3]));
   }
   function refreshBranchOptions(){
     const f = currentFields();
-    setDatalist(branchListEl, filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather, ggf: f.ggf }).map(n => n._branchName));
+    setFieldOptions('branch', filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather, ggf: f.ggf }).map(n => n._branchName));
   }
-  setDatalist(nameListEl, allNodes.map(n => n.name));
+  setFieldOptions('name', allNodes.map(n => n.name));
   refreshFatherOptions();
   refreshGrandfatherOptions();
   refreshGgfOptions();
   refreshBranchOptions();
+
+  function wireSuggestBox(inputEl, boxEl, key){
+    function render(){
+      const list = fieldOptionsCache[key] || [];
+      const typed = (inputEl.value || '').trim();
+      const typedNorm = normalizeArabic(typed);
+      const filtered = typedNorm ? list.filter(v => normalizeArabic(v).includes(typedNorm)) : list;
+      if(!filtered.length){
+        boxEl.innerHTML = '<div class="empty">لا اقتراحات</div>';
+        boxEl.classList.add('open');
+        return;
+      }
+      boxEl.innerHTML = filtered.slice(0, 300).map(v => `<div data-v="${v.replace(/"/g,'&quot;')}">${v}</div>`).join('');
+      boxEl.classList.add('open');
+    }
+    inputEl.addEventListener('focus', render);
+    inputEl.addEventListener('input', render);
+    boxEl.addEventListener('click', (e) => {
+      const item = e.target.closest('div[data-v]');
+      if(!item) return;
+      inputEl.value = item.getAttribute('data-v');
+      boxEl.classList.remove('open');
+      inputEl.dispatchEvent(new Event('input', { bubbles:true }));
+      inputEl.focus();
+    });
+  }
+  wireSuggestBox(document.getElementById('searchName'), document.getElementById('nameSuggestBox'), 'name');
+  wireSuggestBox(document.getElementById('searchFather'), document.getElementById('fatherSuggestBox'), 'father');
+  wireSuggestBox(document.getElementById('searchGrandfather'), document.getElementById('grandfatherSuggestBox'), 'grandfather');
+  wireSuggestBox(document.getElementById('searchGGFather'), document.getElementById('ggfatherSuggestBox'), 'ggf');
+  wireSuggestBox(document.getElementById('searchBranch'), document.getElementById('branchSuggestBox'), 'branch');
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('.suggest-box.open').forEach(box => {
+      const field = box.closest('.search-field');
+      if(!field || !field.contains(e.target)) box.classList.remove('open');
+    });
+  });
 
   document.getElementById('searchName').addEventListener('input', refreshFatherOptions);
   document.getElementById('searchFather').addEventListener('input', refreshGrandfatherOptions);
