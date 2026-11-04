@@ -408,6 +408,16 @@
     circSvgEl.appendChild(defsEl);
     let clipCounter = 0;
 
+    // Angular share of a child is based on sqrt(family size) rather than the
+    // raw family size. Daughters never carry children forward in this data
+    // (every woman is a leaf, _total===1), so next to a brother with a large
+    // recorded family she'd be allocated a sliver too thin to ever label.
+    // Compressing with sqrt still shows who has the bigger family, but stops
+    // leaves from being crushed to invisibility by one prolific sibling.
+    function spanWeight(n){
+      return Math.sqrt(n._total);
+    }
+
     function visibleChildren(n){
       return hideFemales ? n._children.filter(c => c.gender !== 'female') : n._children;
     }
@@ -494,10 +504,10 @@
 
       const kids = visibleChildren(n);
       if(ring < depth && kids.length){
-        const total = kids.reduce((s,c) => s + c._total, 0) || 1;
+        const total = kids.reduce((s,c) => s + spanWeight(c), 0) || 1;
         let a = a0;
         kids.forEach((c, idx) => {
-          const span = (a1 - a0) * (c._total / total);
+          const span = (a1 - a0) * (spanWeight(c) / total);
           addArc(c, r1, r1 + ringThickness, a, a + span, ring + 1, idx);
           a += span;
         });
@@ -506,10 +516,10 @@
 
     const rootKids = visibleChildren(node);
     if(rootKids.length){
-      const total = rootKids.reduce((s,c) => s + c._total, 0) || 1;
+      const total = rootKids.reduce((s,c) => s + spanWeight(c), 0) || 1;
       let a = 0;
       rootKids.forEach((c, idx) => {
-        const span = 2 * Math.PI * (c._total / total);
+        const span = 2 * Math.PI * (spanWeight(c) / total);
         addArc(c, centerR, centerR + ringThickness, a, a + span, 1, idx);
         a += span;
       });
