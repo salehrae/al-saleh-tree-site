@@ -424,11 +424,29 @@
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('dominant-baseline', 'middle');
         text.setAttribute('transform', `rotate(${rotDeg.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)})`);
-        let label = n.name;
-        const maxChars = Math.max(3, Math.floor(angWidth * midR / 7));
-        if(label.length > maxChars) label = label.slice(0, Math.max(2, maxChars - 1)) + '…';
-        text.textContent = label;
+        text.textContent = n.name;
         circSvgEl.appendChild(text);
+        // fit the label to the wedge's actual arc length, measuring the real
+        // rendered glyph width rather than guessing from character count
+        // (Arabic letterforms vary a lot in width, so a fixed divisor either
+        // truncates text that would have fit, or overflows into neighbors)
+        const available = angWidth * midR * 0.86;
+        let bbox = text.getBBox();
+        if(bbox.width > available && n.name.length > 2){
+          let lo = 1, hi = n.name.length - 1, best = n.name.slice(0, 1) + '…';
+          while(lo <= hi){
+            const mid = Math.ceil((lo + hi) / 2);
+            const candidate = n.name.slice(0, mid) + '…';
+            text.textContent = candidate;
+            if(text.getBBox().width <= available){ best = candidate; lo = mid + 1; }
+            else { hi = mid - 1; }
+          }
+          text.textContent = best;
+          bbox = text.getBBox();
+        }
+        if(bbox.width > available && available < 10){
+          text.remove();
+        }
       }
 
       if(ring < depth && n._children.length){
