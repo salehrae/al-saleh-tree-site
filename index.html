@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>شجرة أسرة الصالح — القائمة الكاملة</title>
+<script>
+  // Apply the saved design choice immediately (before first paint) so there's
+  // no flash of the wrong theme when the page loads.
+  (function(){
+    try{
+      var t = localStorage.getItem('altree_theme');
+      document.documentElement.setAttribute('data-theme', (t === 'modern') ? 'modern' : 'classic');
+    }catch(e){
+      document.documentElement.setAttribute('data-theme', 'classic');
+    }
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -115,52 +127,119 @@
   @media (max-width: 640px){
     .search-field input{ width:110px; }
   }
+
+  /* ================= design switcher ================= */
+  .theme-switcher{
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    margin:0 0 10px; font-size:.82em; color:#3f5c4c; flex-wrap:wrap;
+  }
+  .theme-switcher .theme-btn{
+    font-family:inherit; font-size:.95em; cursor:pointer;
+    background:#fff; color:#3f5c4c; border:1.5px solid #ddd;
+    padding:7px 14px; border-radius:999px; font-weight:700;
+  }
+  html[data-theme="classic"] .theme-btn[data-theme-choice="classic"],
+  html[data-theme="modern"] .theme-btn[data-theme-choice="modern"]{
+    background:var(--male); color:#fff; border-color:var(--male);
+  }
+
+  /* ================= modern theme (mobile-friendly) ================= */
+  .sidebar-toggle-btn{ display:none; }
+  html[data-theme="modern"] .sidebar-toggle-btn{
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    width:100%; font-family:inherit; font-weight:700; font-size:.92em; cursor:pointer;
+    background:var(--male); color:#fff; border:none; padding:12px; border-radius:12px;
+    min-height:44px;
+  }
+  html[data-theme="modern"] .tree-sidebar.collapsed .sidebar-body{ display:none; }
+  html[data-theme="modern"] .sidebar-body{ margin-top:10px; }
+
+  html[data-theme="modern"] body{ background:#f3f6f4; }
+  html[data-theme="modern"] .tree-viewport{
+    background:#fff; border:1px solid #e3e9e6; border-radius:16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+  }
+  html[data-theme="modern"] .tree-sidebar{
+    background:#fff; border:1px solid #e3e9e6; border-radius:14px;
+  }
+  html[data-theme="modern"] .controls{ flex-direction:row; flex-wrap:wrap; }
+  html[data-theme="modern"] .controls button{ flex:1 1 auto; min-height:42px; }
+  html[data-theme="modern"] .hide-female-toggle{ flex:1 1 100%; min-height:42px; }
+
+  html[data-theme="modern"] .row{ min-height:48px; padding:6px 10px; border-radius:12px; gap:10px; }
+  html[data-theme="modern"] .row:hover{ background:#f0f4f2; }
+  html[data-theme="modern"] .toggle{ width:22px; height:22px; font-size:1em; line-height:22px; }
+  html[data-theme="modern"] .spacer{ width:22px; }
+  html[data-theme="modern"] .branch-bar{
+    width:30px; height:30px; min-width:30px; border-radius:50%; align-self:center;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-weight:800; font-size:.82em;
+    background:var(--branch-solid, #1f6b45) !important;
+    text-shadow:0 1px 2px rgba(0,0,0,.45);
+  }
+  html[data-theme="modern"] .branch-bar::before{ content: attr(data-initial); }
+  html[data-theme="modern"] .name{ font-size:1.03em; }
+  html[data-theme="modern"] .count{
+    background:#eef2ef; padding:2px 9px; border-radius:999px; font-size:.72em;
+  }
+  html[data-theme="modern"] .children{
+    border-inline-start:1.5px solid #eef2ef; margin-inline-start:15px; padding-inline-start:15px;
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
+
+  <div class="theme-switcher">
+    <span>التصميم:</span>
+    <button type="button" class="theme-btn" data-theme-choice="classic">كلاسيكي</button>
+    <button type="button" class="theme-btn" data-theme-choice="modern">جديد (مناسب للجوال)</button>
+  </div>
 
   <div class="tree-viewport">
     <div class="tree-content" id="treeViewport">
       <p class="load-note" id="loadNote">جارٍ تحميل الشجرة…</p>
     </div>
 
-    <aside class="tree-sidebar">
-      <div class="controls">
-        <button id="expandAllBtn">↧ توسيع الكل</button>
-        <button id="collapseAllBtn">↥ طي الكل</button>
-        <label class="hide-female-toggle"><input type="checkbox" id="hideFemaleChk"> إخفاء الإناث</label>
-      </div>
+    <aside class="tree-sidebar collapsed" id="treeSidebar">
+      <button type="button" class="sidebar-toggle-btn" id="sidebarToggleBtn">🔍 البحث والخيارات</button>
+      <div class="sidebar-body" id="sidebarBody">
+        <div class="controls">
+          <button id="expandAllBtn">↧ توسيع الكل</button>
+          <button id="collapseAllBtn">↥ طي الكل</button>
+          <label class="hide-female-toggle"><input type="checkbox" id="hideFemaleChk"> إخفاء الإناث</label>
+        </div>
 
-      <div class="search-panel-wrap">
-        <div class="search-panel">
-          <div class="search-field">
-            <label>الاسم</label>
-            <input id="searchName" type="text" placeholder="اسم الفرد" autocomplete="off" list="nameList">
+        <div class="search-panel-wrap">
+          <div class="search-panel">
+            <div class="search-field">
+              <label>الاسم</label>
+              <input id="searchName" type="text" placeholder="اسم الفرد" autocomplete="off" list="nameList">
+            </div>
+            <div class="search-field">
+              <label>اسم الأب</label>
+              <input id="searchFather" type="text" placeholder="اختياري" autocomplete="off" list="fatherList">
+            </div>
+            <div class="search-field">
+              <label>اسم الجد</label>
+              <input id="searchGrandfather" type="text" placeholder="اختياري" autocomplete="off" list="grandfatherList">
+            </div>
+            <div class="search-field">
+              <label>اسم الجد الأكبر</label>
+              <input id="searchGGFather" type="text" placeholder="اختياري" autocomplete="off" list="ggfatherList">
+            </div>
+            <div class="search-field">
+              <label>الفرع الرئيسي</label>
+              <input id="searchBranch" type="text" placeholder="اختياري" autocomplete="off" list="branchList">
+            </div>
+            <datalist id="nameList"></datalist>
+            <datalist id="fatherList"></datalist>
+            <datalist id="grandfatherList"></datalist>
+            <datalist id="ggfatherList"></datalist>
+            <datalist id="branchList"></datalist>
+            <button id="searchBtn" type="button"><span class="ic">🔍</span> بحث</button>
+            <div id="searchResults"></div>
           </div>
-          <div class="search-field">
-            <label>اسم الأب</label>
-            <input id="searchFather" type="text" placeholder="اختياري" autocomplete="off" list="fatherList">
-          </div>
-          <div class="search-field">
-            <label>اسم الجد</label>
-            <input id="searchGrandfather" type="text" placeholder="اختياري" autocomplete="off" list="grandfatherList">
-          </div>
-          <div class="search-field">
-            <label>اسم الجد الأكبر</label>
-            <input id="searchGGFather" type="text" placeholder="اختياري" autocomplete="off" list="ggfatherList">
-          </div>
-          <div class="search-field">
-            <label>الفرع الرئيسي</label>
-            <input id="searchBranch" type="text" placeholder="اختياري" autocomplete="off" list="branchList">
-          </div>
-          <datalist id="nameList"></datalist>
-          <datalist id="fatherList"></datalist>
-          <datalist id="grandfatherList"></datalist>
-          <datalist id="ggfatherList"></datalist>
-          <datalist id="branchList"></datalist>
-          <button id="searchBtn" type="button"><span class="ic">🔍</span> بحث</button>
-          <div id="searchResults"></div>
         </div>
       </div>
     </aside>
@@ -188,6 +267,22 @@
     const t = Math.min(amount, 0.75);
     const mix = c => Math.round(c + (255 - c) * t);
     return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+  }
+
+  // ---- design switcher: works immediately, independent of tree data ----
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const choice = btn.getAttribute('data-theme-choice');
+      document.documentElement.setAttribute('data-theme', choice);
+      try{ localStorage.setItem('altree_theme', choice); }catch(e){}
+    });
+  });
+  const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+  const treeSidebarEl = document.getElementById('treeSidebar');
+  if(sidebarToggleBtn && treeSidebarEl){
+    sidebarToggleBtn.addEventListener('click', () => {
+      treeSidebarEl.classList.toggle('collapsed');
+    });
   }
 
   let data; // set once data/tree.json loads
@@ -256,6 +351,8 @@
     const bar = document.createElement('span');
     bar.className = 'branch-bar';
     bar.style.background = node._color;
+    bar.style.setProperty('--branch-solid', node._branchBase || '#1f6b45');
+    bar.setAttribute('data-initial', (node.name || '').trim().charAt(0) || '');
     row.appendChild(bar);
 
     if(node._children.length){
