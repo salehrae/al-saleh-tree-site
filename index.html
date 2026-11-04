@@ -157,14 +157,17 @@
 
   /* ================= modern theme (mobile-friendly) ================= */
   .sidebar-toggle-btn{ display:none; }
-  html[data-theme="modern"] .sidebar-toggle-btn{
+  html[data-theme="modern"] .sidebar-toggle-btn,
+  html[data-theme="circular"] .sidebar-toggle-btn{
     display:flex; align-items:center; justify-content:center; gap:6px;
     width:100%; font-family:inherit; font-weight:700; font-size:.92em; cursor:pointer;
     background:var(--male); color:#fff; border:none; padding:12px; border-radius:12px;
     min-height:44px;
   }
-  html[data-theme="modern"] .tree-sidebar.collapsed .sidebar-body{ display:none; }
-  html[data-theme="modern"] .sidebar-body{ margin-top:10px; }
+  html[data-theme="modern"] .tree-sidebar.collapsed .sidebar-body,
+  html[data-theme="circular"] .tree-sidebar.collapsed .sidebar-body{ display:none; }
+  html[data-theme="modern"] .sidebar-body,
+  html[data-theme="circular"] .sidebar-body{ margin-top:10px; }
 
   html[data-theme="modern"] body{ background:#f3f6f4; }
   html[data-theme="modern"] .tree-viewport{
@@ -197,6 +200,47 @@
   html[data-theme="modern"] .children{
     border-inline-start:1.5px solid #eef2ef; margin-inline-start:15px; padding-inline-start:15px;
   }
+
+  /* ================= circular theme (radial / sunburst chart) ================= */
+  .circular-view{ display:none; flex:1 1 auto; min-width:0; text-align:center; }
+  html[data-theme="circular"] #treeViewport{ display:none; }
+  html[data-theme="circular"] .circular-view{ display:block; }
+  html[data-theme="circular"] .tree-viewport{
+    background:#fff; border:1px solid #e3e9e6; border-radius:16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+  }
+  html[data-theme="circular"] .tree-sidebar{
+    background:#fff; border:1px solid #e3e9e6; border-radius:14px;
+  }
+  .circular-toolbar{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    flex-wrap:wrap; padding:10px 6px 0;
+  }
+  .circular-toolbar button{
+    font-family:inherit; font-size:.85em; cursor:pointer;
+    background:var(--male); color:#fff; border:none;
+    padding:8px 14px; border-radius:999px; font-weight:700;
+  }
+  .circular-toolbar button:disabled{ opacity:.4; cursor:default; }
+  .circ-depth-stepper{
+    display:flex; align-items:center; gap:0; border:1.5px solid #ddd; border-radius:999px; overflow:hidden;
+  }
+  .circ-depth-stepper button{
+    background:#f2f9f4; color:#1c2e24; border:none; width:34px; height:34px;
+    font-size:1.1em; font-weight:800; cursor:pointer; padding:0;
+  }
+  .circ-depth-stepper span{ padding:0 10px; font-size:.85em; font-weight:700; color:#3f5c4c; min-width:62px; display:inline-block; }
+  #circSvg{ width:100%; max-width:560px; height:auto; margin:10px auto 0; display:block; touch-action:manipulation; }
+  .circ-arc{ cursor:pointer; stroke:#fff; stroke-width:1.5; }
+  .circ-arc.male{ fill:#bcd9ef; }
+  .circ-arc.female{ fill:#f6c9d3; }
+  .circ-arc:hover{ filter:brightness(0.95); }
+  .circ-label{ font-family:'Cairo','Tahoma',sans-serif; font-size:13px; fill:#1c2e24; pointer-events:none; }
+  .circ-center{ cursor:pointer; }
+  .circ-center-circle{ fill:var(--male); stroke:#fff; stroke-width:3; }
+  .circ-center-name{ font-family:'Cairo','Tahoma',sans-serif; font-weight:800; fill:#fff; font-size:17px; }
+  .circ-center-gen{ font-family:'Cairo','Tahoma',sans-serif; fill:#d9ecdf; font-size:11px; }
+  .circ-caption{ color:#3f5c4c; font-size:.88em; margin:10px 0 16px; font-weight:600; }
 </style>
 </head>
 <body>
@@ -206,11 +250,25 @@
     <span>التصميم:</span>
     <button type="button" class="theme-btn" data-theme-choice="classic">كلاسيكي</button>
     <button type="button" class="theme-btn" data-theme-choice="modern">جديد (مناسب للجوال)</button>
+    <button type="button" class="theme-btn" data-theme-choice="circular">دائري</button>
   </div>
 
   <div class="tree-viewport">
     <div class="tree-content" id="treeViewport">
       <p class="load-note" id="loadNote">جارٍ تحميل الشجرة…</p>
+    </div>
+
+    <div class="circular-view" id="circularView">
+      <div class="circular-toolbar">
+        <button type="button" id="circUpBtn">⬆ للأب</button>
+        <div class="circ-depth-stepper">
+          <button type="button" id="circDepthMinus">−</button>
+          <span id="circDepthLabel">4 أجيال</span>
+          <button type="button" id="circDepthPlus">+</button>
+        </div>
+      </div>
+      <svg id="circSvg" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet"></svg>
+      <p class="circ-caption" id="circCaption"></p>
     </div>
 
     <aside class="tree-sidebar collapsed" id="treeSidebar">
@@ -298,6 +356,140 @@
   }
 
   let data; // set once data/tree.json loads
+
+  // ================= circular (sunburst) view =================
+  let circCenterNode = null;
+  let circMaxDepth = 4;
+  const CIRC_MAX_RINGS = 5; // fits the fixed SVG geometry below (centerR=56, ringThickness=46, maxOuter=300)
+  const circSvgEl = document.getElementById('circSvg');
+  const circCaptionEl = document.getElementById('circCaption');
+  const circUpBtn = document.getElementById('circUpBtn');
+  const circDepthLabel = document.getElementById('circDepthLabel');
+  const circDepthMinus = document.getElementById('circDepthMinus');
+  const circDepthPlus = document.getElementById('circDepthPlus');
+
+  function polarPoint(cx, cy, r, angle){
+    return { x: cx + r * Math.sin(angle), y: cy - r * Math.cos(angle) };
+  }
+  function arcPath(cx, cy, r0, r1, a0, a1){
+    const p0 = polarPoint(cx, cy, r0, a0);
+    const p1 = polarPoint(cx, cy, r1, a0);
+    const p2 = polarPoint(cx, cy, r1, a1);
+    const p3 = polarPoint(cx, cy, r0, a1);
+    const large = (a1 - a0) > Math.PI ? 1 : 0;
+    return `M ${p0.x.toFixed(2)} ${p0.y.toFixed(2)} ` +
+           `L ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} ` +
+           `A ${r1.toFixed(2)} ${r1.toFixed(2)} 0 ${large} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} ` +
+           `L ${p3.x.toFixed(2)} ${p3.y.toFixed(2)} ` +
+           `A ${r0.toFixed(2)} ${r0.toFixed(2)} 0 ${large} 0 ${p0.x.toFixed(2)} ${p0.y.toFixed(2)} Z`;
+  }
+  function centerCircularOn(node){
+    circCenterNode = node;
+    renderCircular();
+  }
+  function renderCircular(){
+    if(!circCenterNode) circCenterNode = data;
+    const node = circCenterNode;
+    const cx = 320, cy = 320;
+    const centerR = 56;
+    const ringThickness = 46;
+    const depth = Math.max(1, Math.min(circMaxDepth, CIRC_MAX_RINGS));
+    const svgNS = 'http://www.w3.org/2000/svg';
+    circSvgEl.innerHTML = '';
+
+    let maleCount = 0, femaleCount = 0, deepestRendered = 0;
+
+    function addArc(n, r0, r1, a0, a1, ring){
+      if(n.gender === 'female') femaleCount++; else maleCount++;
+      deepestRendered = Math.max(deepestRendered, ring);
+      const path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('d', arcPath(cx, cy, r0, r1, a0, a1));
+      path.setAttribute('class', 'circ-arc ' + (n.gender === 'female' ? 'female' : 'male'));
+      if(n._children.length){
+        path.addEventListener('click', () => centerCircularOn(n));
+      }
+      circSvgEl.appendChild(path);
+
+      const angWidth = a1 - a0;
+      if(angWidth > 0.12){
+        const midA = (a0 + a1) / 2;
+        const midR = (r0 + r1) / 2;
+        const p = polarPoint(cx, cy, midR, midA);
+        let rotDeg = (midA * 180 / Math.PI) - 90;
+        if(midA > Math.PI){ rotDeg += 180; }
+        const text = document.createElementNS(svgNS, 'text');
+        text.setAttribute('class', 'circ-label');
+        text.setAttribute('x', p.x.toFixed(2));
+        text.setAttribute('y', p.y.toFixed(2));
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'middle');
+        text.setAttribute('transform', `rotate(${rotDeg.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)})`);
+        let label = n.name;
+        const maxChars = Math.max(3, Math.floor(angWidth * midR / 7));
+        if(label.length > maxChars) label = label.slice(0, Math.max(2, maxChars - 1)) + '…';
+        text.textContent = label;
+        circSvgEl.appendChild(text);
+      }
+
+      if(ring < depth && n._children.length){
+        const total = n._children.reduce((s,c) => s + c._total, 0) || 1;
+        let a = a0;
+        n._children.forEach(c => {
+          const span = (a1 - a0) * (c._total / total);
+          addArc(c, r1, r1 + ringThickness, a, a + span, ring + 1);
+          a += span;
+        });
+      }
+    }
+
+    if(node._children.length){
+      const total = node._children.reduce((s,c) => s + c._total, 0) || 1;
+      let a = 0;
+      node._children.forEach(c => {
+        const span = 2 * Math.PI * (c._total / total);
+        addArc(c, centerR, centerR + ringThickness, a, a + span, 1);
+        a += span;
+      });
+    }
+
+    const g = document.createElementNS(svgNS, 'g');
+    g.setAttribute('class', 'circ-center');
+    const circle = document.createElementNS(svgNS, 'circle');
+    circle.setAttribute('class', 'circ-center-circle');
+    circle.setAttribute('cx', cx); circle.setAttribute('cy', cy); circle.setAttribute('r', centerR);
+    g.appendChild(circle);
+    const nameText = document.createElementNS(svgNS, 'text');
+    nameText.setAttribute('class', 'circ-center-name');
+    nameText.setAttribute('x', cx); nameText.setAttribute('y', cy - 6);
+    nameText.setAttribute('text-anchor', 'middle');
+    nameText.textContent = node.name;
+    g.appendChild(nameText);
+    const genText = document.createElementNS(svgNS, 'text');
+    genText.setAttribute('class', 'circ-center-gen');
+    genText.setAttribute('x', cx); genText.setAttribute('y', cy + 14);
+    genText.setAttribute('text-anchor', 'middle');
+    genText.textContent = 'الجيل ' + (node._depth + 1);
+    g.appendChild(genText);
+    if(node._parent){
+      g.addEventListener('click', () => centerCircularOn(node._parent));
+    }
+    circSvgEl.appendChild(g);
+
+    circUpBtn.disabled = !node._parent;
+    circDepthLabel.textContent = depth + ' أجيال';
+    circCaptionEl.textContent = `${deepestRendered} أجيال ظاهرة   ${maleCount} ذكور   ${femaleCount} إناث`;
+  }
+  circUpBtn.addEventListener('click', () => {
+    if(circCenterNode && circCenterNode._parent) centerCircularOn(circCenterNode._parent);
+  });
+  circDepthMinus.addEventListener('click', () => {
+    circMaxDepth = Math.max(1, circMaxDepth - 1);
+    renderCircular();
+  });
+  circDepthPlus.addEventListener('click', () => {
+    circMaxDepth = Math.min(CIRC_MAX_RINGS, circMaxDepth + 1);
+    renderCircular();
+  });
 
   function augment(node, depth, parent){
     node._depth = depth;
@@ -634,7 +826,12 @@
     resultsBox.querySelectorAll('div[data-i]').forEach(elm => {
       elm.addEventListener('click', () => {
         const idx = +elm.getAttribute('data-i');
-        revealNode(matches[idx]);
+        if(document.documentElement.getAttribute('data-theme') === 'circular'){
+          centerCircularOn(matches[idx]);
+          if(treeSidebarEl) treeSidebarEl.classList.add('collapsed');
+        } else {
+          revealNode(matches[idx]);
+        }
         resultsBox.style.display = 'none';
       });
     });
@@ -687,6 +884,7 @@
     applyStoredAdditions(additions);
     applyStoredCorrections(corrections);
     boot();
+    renderCircular();
   }).catch(err => {
     console.error('failed to load tree data:', err);
     document.getElementById('loadNote').textContent = 'تعذر تحميل بيانات الشجرة. تأكد أن data/tree.json موجود بجانب هذه الصفحة.';
