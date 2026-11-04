@@ -403,6 +403,9 @@
     const ringThickness = Math.min(46, (CIRC_MAX_OUTER - centerR) / depth);
     const svgNS = 'http://www.w3.org/2000/svg';
     circSvgEl.innerHTML = '';
+    const defsEl = document.createElementNS(svgNS, 'defs');
+    circSvgEl.appendChild(defsEl);
+    let clipCounter = 0;
 
     function visibleChildren(n){
       return hideFemales ? n._children.filter(c => c.gender !== 'female') : n._children;
@@ -457,6 +460,19 @@
         }
         if(bbox.width > available && available < 10){
           text.remove();
+        } else {
+          // Belt-and-suspenders: clip the label to its own wedge shape, so
+          // even if the width estimate above is slightly off (a font still
+          // loading, a browser quirk), the glyphs can never visually spill
+          // into a neighboring wedge — they are simply cut at the boundary.
+          const clipId = 'circClip' + (clipCounter++);
+          const clipPath = document.createElementNS(svgNS, 'clipPath');
+          clipPath.setAttribute('id', clipId);
+          const clipShape = document.createElementNS(svgNS, 'path');
+          clipShape.setAttribute('d', arcPath(cx, cy, r0, r1, a0, a1));
+          clipPath.appendChild(clipShape);
+          defsEl.appendChild(clipPath);
+          text.setAttribute('clip-path', `url(#${clipId})`);
         }
       }
 
