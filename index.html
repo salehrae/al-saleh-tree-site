@@ -212,6 +212,9 @@
   html[data-theme="circular"] .tree-sidebar{
     background:#fff; border:1px solid #e3e9e6; border-radius:14px;
   }
+  /* expand/collapse-all only make sense for the list view */
+  html[data-theme="circular"] #expandAllBtn,
+  html[data-theme="circular"] #collapseAllBtn{ display:none; }
   .circular-toolbar{
     display:flex; align-items:center; justify-content:center; gap:10px;
     flex-wrap:wrap; padding:10px 6px 0;
@@ -360,7 +363,25 @@
   // ================= circular (sunburst) view =================
   let circCenterNode = null;
   let circMaxDepth = 4;
-  const CIRC_MAX_RINGS = 5; // fits the fixed SVG geometry below (centerR=56, ringThickness=46, maxOuter=300)
+  const CIRC_MAX_RINGS = 9;
+  const CIRC_MAX_OUTER = 300; // outer edge radius the rings must fit inside, in viewBox units
+  let hideFemales = false;
+  // The chart measures label widths with getBBox() to decide how much of
+  // each name fits in its wedge, but Cairo's glyphs are noticeably wider
+  // than the Tahoma fallback the browser uses while the webfont is still
+  // loading — measuring before Cairo is ready makes labels overflow once it
+  // swaps in. Every render waits for it (free after the first time, since
+  // the browser caches the font load).
+  function whenFontsReady(cb){
+    if(window.document && document.fonts && document.fonts.load){
+      Promise.all([
+        document.fonts.load('400 13px Cairo').catch(() => {}),
+        document.fonts.load('800 17px Cairo').catch(() => {})
+      ]).then(() => document.fonts.ready).then(cb, cb);
+    } else {
+      cb();
+    }
+  }
   const circSvgEl = document.getElementById('circSvg');
   const circCaptionEl = document.getElementById('circCaption');
   const circUpBtn = document.getElementById('circUpBtn');
@@ -388,14 +409,23 @@
     renderCircular();
   }
   function renderCircular(){
+    whenFontsReady(renderCircularNow);
+  }
+  function renderCircularNow(){
     if(!circCenterNode) circCenterNode = data;
     const node = circCenterNode;
     const cx = 320, cy = 320;
     const centerR = 56;
-    const ringThickness = 46;
     const depth = Math.max(1, Math.min(circMaxDepth, CIRC_MAX_RINGS));
+    // shrink ring thickness as more generations are requested, so any depth
+    // up to CIRC_MAX_RINGS always fits inside the fixed-size chart
+    const ringThickness = Math.min(46, (CIRC_MAX_OUTER - centerR) / depth);
     const svgNS = 'http://www.w3.org/2000/svg';
     circSvgEl.innerHTML = '';
+
+    function visibleChildren(n){
+      return hideFemales ? n._children.filter(c => c.gender !== 'female') : n._children;
+    }
 
     let maleCount = 0, femaleCount = 0, deepestRendered = 0;
 
@@ -405,7 +435,7 @@
       const path = document.createElementNS(svgNS, 'path');
       path.setAttribute('d', arcPath(cx, cy, r0, r1, a0, a1));
       path.setAttribute('class', 'circ-arc ' + (n.gender === 'female' ? 'female' : 'male'));
-      if(n._children.length){
+      if(visibleChildren(n).length){
         path.addEventListener('click', () => centerCircularOn(n));
       }
       circSvgEl.appendChild(path);
@@ -449,10 +479,11 @@
         }
       }
 
-      if(ring < depth && n._children.length){
-        const total = n._children.reduce((s,c) => s + c._total, 0) || 1;
+      const kids = visibleChildren(n);
+      if(ring < depth && kids.length){
+        const total = kids.reduce((s,c) => s + c._total, 0) || 1;
         let a = a0;
-        n._children.forEach(c => {
+        kids.forEach(c => {
           const span = (a1 - a0) * (c._total / total);
           addArc(c, r1, r1 + ringThickness, a, a + span, ring + 1);
           a += span;
@@ -460,10 +491,11 @@
       }
     }
 
-    if(node._children.length){
-      const total = node._children.reduce((s,c) => s + c._total, 0) || 1;
+    const rootKids = visibleChildren(node);
+    if(rootKids.length){
+      const total = rootKids.reduce((s,c) => s + c._total, 0) || 1;
       let a = 0;
-      node._children.forEach(c => {
+      rootKids.forEach(c => {
         const span = 2 * Math.PI * (c._total / total);
         addArc(c, centerR, centerR + ringThickness, a, a + span, 1);
         a += span;
@@ -653,6 +685,8 @@
   };
   document.getElementById('hideFemaleChk').addEventListener('change', (e) => {
     document.body.classList.toggle('hide-female', e.target.checked);
+    hideFemales = e.target.checked;
+    if(circCenterNode) renderCircular();
   });
 
   // ---- search (Arabic-aware normalization + cascading suggestions) ----
