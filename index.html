@@ -212,9 +212,6 @@
   html[data-theme="circular"] .tree-sidebar{
     background:#fff; border:1px solid #e3e9e6; border-radius:14px;
   }
-  /* expand/collapse-all only make sense for the list view */
-  html[data-theme="circular"] #expandAllBtn,
-  html[data-theme="circular"] #collapseAllBtn{ display:none; }
   .circular-toolbar{
     display:flex; align-items:center; justify-content:center; gap:10px;
     flex-wrap:wrap; padding:10px 6px 0;
@@ -225,14 +222,6 @@
     padding:8px 14px; border-radius:999px; font-weight:700;
   }
   .circular-toolbar button:disabled{ opacity:.4; cursor:default; }
-  .circ-depth-stepper{
-    display:flex; align-items:center; gap:0; border:1.5px solid #ddd; border-radius:999px; overflow:hidden;
-  }
-  .circ-depth-stepper button{
-    background:#f2f9f4; color:#1c2e24; border:none; width:34px; height:34px;
-    font-size:1.1em; font-weight:800; cursor:pointer; padding:0;
-  }
-  .circ-depth-stepper span{ padding:0 10px; font-size:.85em; font-weight:700; color:#3f5c4c; min-width:62px; display:inline-block; }
   #circSvg{ width:100%; max-width:560px; height:auto; margin:10px auto 0; display:block; touch-action:manipulation; }
   .circ-arc{ cursor:pointer; stroke:#fff; stroke-width:1.5; }
   .circ-arc.male{ fill:#bcd9ef; }
@@ -264,11 +253,6 @@
     <div class="circular-view" id="circularView">
       <div class="circular-toolbar">
         <button type="button" id="circUpBtn">⬆ للأب</button>
-        <div class="circ-depth-stepper">
-          <button type="button" id="circDepthMinus">−</button>
-          <span id="circDepthLabel">4 أجيال</span>
-          <button type="button" id="circDepthPlus">+</button>
-        </div>
       </div>
       <svg id="circSvg" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet"></svg>
       <p class="circ-caption" id="circCaption"></p>
@@ -385,9 +369,6 @@
   const circSvgEl = document.getElementById('circSvg');
   const circCaptionEl = document.getElementById('circCaption');
   const circUpBtn = document.getElementById('circUpBtn');
-  const circDepthLabel = document.getElementById('circDepthLabel');
-  const circDepthMinus = document.getElementById('circDepthMinus');
-  const circDepthPlus = document.getElementById('circDepthPlus');
 
   function polarPoint(cx, cy, r, angle){
     return { x: cx + r * Math.sin(angle), y: cy - r * Math.cos(angle) };
@@ -526,20 +507,19 @@
     circSvgEl.appendChild(g);
 
     circUpBtn.disabled = !node._parent;
-    circDepthLabel.textContent = depth + ' أجيال';
     circCaptionEl.textContent = `${deepestRendered} أجيال ظاهرة   ${maleCount} ذكور   ${femaleCount} إناث`;
   }
   circUpBtn.addEventListener('click', () => {
     if(circCenterNode && circCenterNode._parent) centerCircularOn(circCenterNode._parent);
   });
-  circDepthMinus.addEventListener('click', () => {
-    circMaxDepth = Math.max(1, circMaxDepth - 1);
-    renderCircular();
-  });
-  circDepthPlus.addEventListener('click', () => {
+  function circExpandDepth(){
     circMaxDepth = Math.min(CIRC_MAX_RINGS, circMaxDepth + 1);
     renderCircular();
-  });
+  }
+  function circCollapseDepth(){
+    circMaxDepth = Math.max(1, circMaxDepth - 1);
+    renderCircular();
+  }
 
   function augment(node, depth, parent){
     node._depth = depth;
@@ -669,14 +649,23 @@
   frag.appendChild(buildNode(data));
   viewport.appendChild(frag);
 
-  // ---- expand/collapse all ----
+  // ---- expand/collapse all: in the circular design these instead step the
+  // number of generations shown outward/inward ----
   document.getElementById('expandAllBtn').onclick = () => {
+    if(document.documentElement.getAttribute('data-theme') === 'circular'){
+      circExpandDepth();
+      return;
+    }
     allNodes.forEach(n => {
       if(n._childWrap) n._childWrap.classList.remove('collapsed');
       if(n._row){ const t = n._row.querySelector('.toggle'); if(t) t.classList.add('open'); }
     });
   };
   document.getElementById('collapseAllBtn').onclick = () => {
+    if(document.documentElement.getAttribute('data-theme') === 'circular'){
+      circCollapseDepth();
+      return;
+    }
     allNodes.forEach(n => {
       if(n === data) return;
       if(n._childWrap) n._childWrap.classList.add('collapsed');
