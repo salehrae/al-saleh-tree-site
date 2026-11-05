@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>شجرة أسرة الصالح — القائمة الكاملة</title>
 <script>
-  // Apply the saved design choice immediately (before first paint) so there's
-  // no flash of the wrong theme when the page loads.
+  // Apply the saved page choice immediately (before first paint) so there's
+  // no flash of the wrong page when the page loads. Only two pages exist now:
+  // 'modern' (شجرة الصالح — القائمة الكاملة) and 'circular' (أقربائي).
   (function(){
     try{
       var t = localStorage.getItem('altree_theme');
-      document.documentElement.setAttribute('data-theme', (t === 'modern') ? 'modern' : 'classic');
+      document.documentElement.setAttribute('data-theme', (t === 'circular') ? 'circular' : 'modern');
     }catch(e){
-      document.documentElement.setAttribute('data-theme', 'classic');
+      document.documentElement.setAttribute('data-theme', 'modern');
     }
   })();
 </script>
@@ -93,14 +94,16 @@
     padding:9px 14px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,.18);
   }
   #searchBtn:hover{ background:#2f7a54; }
-  #searchResults{
+  #searchResults, #relResults{
     margin-top:8px; background:#fff;
     border:2px solid var(--gold); border-radius:10px; max-height:280px;
     overflow-y:auto; display:none; box-shadow:0 6px 18px rgba(0,0,0,.2);
   }
-  #searchResults div{ padding:8px 10px; cursor:pointer; border-bottom:1px solid #eee; font-size:.85em; }
-  #searchResults div:hover{ background:#e6f4ea; }
-  #searchResults .path{ color:#888; font-size:.75em; }
+  #searchResults div, #relResults div{ padding:8px 10px; cursor:pointer; border-bottom:1px solid #eee; font-size:.85em; }
+  #searchResults div:hover, #relResults div:hover{ background:#e6f4ea; }
+  #searchResults .path, #relResults .path{ color:#888; font-size:.75em; }
+  #searchResults div.error, #relResults div.error{ cursor:default; color:#c0392b; font-weight:700; }
+  #searchResults div.error:hover, #relResults div.error:hover{ background:#fff; }
 
   @media (max-width: 768px){
     .tree-viewport{ flex-direction:column; }
@@ -150,24 +153,25 @@
     background:#fff; color:#3f5c4c; border:1.5px solid #ddd;
     padding:7px 14px; border-radius:999px; font-weight:700;
   }
-  html[data-theme="classic"] .theme-btn[data-theme-choice="classic"],
-  html[data-theme="modern"] .theme-btn[data-theme-choice="modern"]{
+  html[data-theme="modern"] .theme-btn[data-theme-choice="modern"],
+  html[data-theme="circular"] .theme-btn[data-theme-choice="circular"]{
     background:var(--male); color:#fff; border-color:var(--male);
   }
 
   /* ================= modern theme (mobile-friendly) ================= */
   .sidebar-toggle-btn{ display:none; }
-  html[data-theme="modern"] .sidebar-toggle-btn,
-  html[data-theme="circular"] .sidebar-toggle-btn{
+  html[data-theme="modern"] .sidebar-toggle-btn{
     display:flex; align-items:center; justify-content:center; gap:6px;
     width:100%; font-family:inherit; font-weight:700; font-size:.92em; cursor:pointer;
     background:var(--male); color:#fff; border:none; padding:12px; border-radius:12px;
     min-height:44px;
   }
-  html[data-theme="modern"] .tree-sidebar.collapsed .sidebar-body,
-  html[data-theme="circular"] .tree-sidebar.collapsed .sidebar-body{ display:none; }
-  html[data-theme="modern"] .sidebar-body,
-  html[data-theme="circular"] .sidebar-body{ margin-top:10px; }
+  html[data-theme="modern"] .tree-sidebar.collapsed .sidebar-body{ display:none; }
+  html[data-theme="modern"] .sidebar-body{ margin-top:10px; }
+  /* the أقربائي page has its own dedicated search form + toolbar, so the
+     general sidebar (built for browsing/searching the full list tree) isn't
+     shown there at all */
+  html[data-theme="circular"] .tree-sidebar{ display:none; }
 
   html[data-theme="modern"] body{ background:#f3f6f4; }
   html[data-theme="modern"] .tree-viewport{
@@ -201,17 +205,23 @@
     border-inline-start:1.5px solid #eef2ef; margin-inline-start:15px; padding-inline-start:15px;
   }
 
+  /* ================= list hint banner (شجرة الصالح page) ================= */
+  .list-hint{
+    background:#eaf5ee; border:1.5px solid var(--gold); border-radius:10px;
+    padding:9px 12px; font-size:.85em; color:#1f6b45; font-weight:700; margin:0 0 10px;
+  }
+
   /* ================= circular theme (radial / sunburst chart) ================= */
   .circular-view{ display:none; flex:1 1 auto; min-width:0; text-align:center; }
-  html[data-theme="circular"] #treeViewport{ display:none; }
+  html[data-theme="circular"] #treeContent{ display:none; }
   html[data-theme="circular"] .circular-view{ display:block; }
   html[data-theme="circular"] .tree-viewport{
     background:#fff; border:1px solid #e3e9e6; border-radius:16px;
     box-shadow:0 1px 3px rgba(0,0,0,.05);
   }
-  html[data-theme="circular"] .tree-sidebar{
-    background:#fff; border:1px solid #e3e9e6; border-radius:14px;
-  }
+  .relatives-search-panel{ max-width:420px; margin:14px auto 0; text-align:right; }
+  .relatives-search-panel .rel-intro{ color:#3f5c4c; font-size:.9em; margin:0 0 12px; text-align:center; }
+  .circular-chart-panel{ display:none; }
   .circular-toolbar{
     display:flex; align-items:center; justify-content:center; gap:10px;
     flex-wrap:wrap; padding:10px 6px 0;
@@ -234,7 +244,7 @@
   .circ-arc.female{ fill:#f6c9d3; }
   .circ-arc:hover{ filter:brightness(0.95); }
   .circ-label{ font-family:'Tajawal','Cairo','Tahoma',sans-serif; font-size:5px; fill:#1c2e24; pointer-events:none; }
-  .circ-center{ cursor:pointer; }
+  .circ-center{ cursor:default; }
   .circ-center-circle{ fill:var(--male); stroke:#fff; stroke-width:3; }
   .circ-center-name{ font-family:'Cairo','Tahoma',sans-serif; font-weight:800; fill:#fff; font-size:17px; }
   .circ-center-gen{ font-family:'Cairo','Tahoma',sans-serif; fill:#d9ecdf; font-size:11px; }
@@ -245,27 +255,70 @@
 <div class="wrap">
 
   <div class="theme-switcher">
-    <span>التصميم:</span>
-    <button type="button" class="theme-btn" data-theme-choice="classic">كلاسيكي</button>
-    <button type="button" class="theme-btn" data-theme-choice="modern">جديد (مناسب للجوال)</button>
-    <button type="button" class="theme-btn" data-theme-choice="circular">دائري</button>
+    <span>الصفحة:</span>
+    <button type="button" class="theme-btn" data-theme-choice="modern">شجرة الصالح</button>
+    <button type="button" class="theme-btn" data-theme-choice="circular">أقربائي</button>
   </div>
 
   <div class="tree-viewport">
-    <div class="tree-content" id="treeViewport">
-      <p class="load-note" id="loadNote">جارٍ تحميل الشجرة…</p>
+    <div class="tree-content" id="treeContent">
+      <p class="list-hint">👆 اضغط على الاسم لفتح أو طي الفرع</p>
+      <div id="treeViewport">
+        <p class="load-note" id="loadNote">جارٍ تحميل الشجرة…</p>
+      </div>
     </div>
 
     <div class="circular-view" id="circularView">
-      <div class="circular-toolbar">
-        <button type="button" id="circUpBtn">⬆ للأب</button>
-        <button type="button" id="circZoomResetBtn">↺ الحجم الأصلي</button>
+      <div class="relatives-search-panel" id="relativesSearchPanel">
+        <p class="rel-intro">أدخل الأسماء الخمسة لفتح الشجرة الدائرية لأقاربك</p>
+        <div class="search-panel-wrap">
+          <div class="search-panel">
+            <div class="search-field">
+              <label>الاسم</label>
+              <input id="relName" type="text" placeholder="مطلوب" autocomplete="off">
+              <div class="suggest-box" id="relNameSuggestBox"></div>
+            </div>
+            <div class="search-field">
+              <label>اسم الأب</label>
+              <input id="relFather" type="text" placeholder="مطلوب" autocomplete="off">
+              <div class="suggest-box" id="relFatherSuggestBox"></div>
+            </div>
+            <div class="search-field">
+              <label>اسم الجد</label>
+              <input id="relGrandfather" type="text" placeholder="مطلوب" autocomplete="off">
+              <div class="suggest-box" id="relGrandfatherSuggestBox"></div>
+            </div>
+            <div class="search-field">
+              <label>اسم الجد الأكبر</label>
+              <input id="relGGFather" type="text" placeholder="مطلوب" autocomplete="off">
+              <div class="suggest-box" id="relGgfatherSuggestBox"></div>
+            </div>
+            <div class="search-field">
+              <label>الفرع الرئيسي</label>
+              <input id="relBranch" type="text" placeholder="مطلوب" autocomplete="off">
+              <div class="suggest-box" id="relBranchSuggestBox"></div>
+            </div>
+            <button id="relSearchBtn" type="button"><span class="ic">🔍</span> عرض شجرة الأقارب</button>
+            <div id="relResults"></div>
+          </div>
+        </div>
       </div>
-      <div class="circ-zoom-wrap" id="circZoomWrap">
-        <svg id="circSvg" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet"></svg>
+
+      <div class="circular-chart-panel" id="circularChartPanel">
+        <div class="circular-toolbar">
+          <button type="button" id="relNewSearchBtn">🔍 بحث جديد</button>
+          <button type="button" id="circUpBtn">⬆ للأب</button>
+          <button type="button" id="circExpandBtn">➕ جيل</button>
+          <button type="button" id="circCollapseBtn">➖ جيل</button>
+          <button type="button" id="circZoomResetBtn">↺ الحجم الأصلي</button>
+          <label class="hide-female-toggle"><input type="checkbox" id="circHideFemaleChk"> إخفاء الإناث</label>
+        </div>
+        <div class="circ-zoom-wrap" id="circZoomWrap">
+          <svg id="circSvg" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <p class="circ-zoom-hint">🔍 قرّب بإصبعين على الجوال، أو بعجلة الفأرة على الكمبيوتر</p>
+        <p class="circ-caption" id="circCaption"></p>
       </div>
-      <p class="circ-zoom-hint">🔍 قرّب بإصبعين على الجوال، أو بعجلة الفأرة على الكمبيوتر</p>
-      <p class="circ-caption" id="circCaption"></p>
     </div>
 
     <aside class="tree-sidebar collapsed" id="treeSidebar">
@@ -286,22 +339,22 @@
             </div>
             <div class="search-field">
               <label>اسم الأب</label>
-              <input id="searchFather" type="text" placeholder="اختياري" autocomplete="off">
+              <input id="searchFather" type="text" placeholder="مطلوب" autocomplete="off">
               <div class="suggest-box" id="fatherSuggestBox"></div>
             </div>
             <div class="search-field">
               <label>اسم الجد</label>
-              <input id="searchGrandfather" type="text" placeholder="اختياري" autocomplete="off">
+              <input id="searchGrandfather" type="text" placeholder="مطلوب" autocomplete="off">
               <div class="suggest-box" id="grandfatherSuggestBox"></div>
             </div>
             <div class="search-field">
               <label>اسم الجد الأكبر</label>
-              <input id="searchGGFather" type="text" placeholder="اختياري" autocomplete="off">
+              <input id="searchGGFather" type="text" placeholder="مطلوب" autocomplete="off">
               <div class="suggest-box" id="ggfatherSuggestBox"></div>
             </div>
             <div class="search-field">
               <label>الفرع الرئيسي</label>
-              <input id="searchBranch" type="text" placeholder="اختياري" autocomplete="off">
+              <input id="searchBranch" type="text" placeholder="مطلوب" autocomplete="off">
               <div class="suggest-box" id="branchSuggestBox"></div>
             </div>
             <button id="searchBtn" type="button"><span class="ic">🔍</span> بحث</button>
@@ -342,6 +395,12 @@
       const choice = btn.getAttribute('data-theme-choice');
       document.documentElement.setAttribute('data-theme', choice);
       try{ localStorage.setItem('altree_theme', choice); }catch(e){}
+      // pressing أقربائي always opens a fresh 5-name entry form, never
+      // resumes whatever circular tree happened to be open before
+      if(choice === 'circular'){
+        resetRelativesForm();
+        showRelativesSearchForm();
+      }
     });
   });
   const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
@@ -505,6 +564,28 @@
   }, true);
   circZoomResetBtn.addEventListener('click', resetCircZoom);
 
+  // ---- أقربائي page: toggle between the 5-name entry form and the circular
+  // chart. These only touch static DOM (no tree data needed), so they're
+  // safe to call immediately, even before data/tree.json has loaded.
+  const relativesSearchPanelEl = document.getElementById('relativesSearchPanel');
+  const circularChartPanelEl = document.getElementById('circularChartPanel');
+  function showRelativesSearchForm(){
+    relativesSearchPanelEl.style.display = 'block';
+    circularChartPanelEl.style.display = 'none';
+  }
+  function showRelativesChart(){
+    relativesSearchPanelEl.style.display = 'none';
+    circularChartPanelEl.style.display = 'block';
+  }
+  function resetRelativesForm(){
+    ['relName','relFather','relGrandfather','relGGFather','relBranch'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.value = '';
+    });
+    const relResultsBox = document.getElementById('relResults');
+    if(relResultsBox){ relResultsBox.innerHTML = ''; relResultsBox.style.display = 'none'; }
+  }
+
   function polarPoint(cx, cy, r, angle){
     return { x: cx + r * Math.sin(angle), y: cy - r * Math.cos(angle) };
   }
@@ -634,9 +715,10 @@
       const path = document.createElementNS(svgNS, 'path');
       path.setAttribute('d', arcPath(cx, cy, r0, r1, a0, a1));
       path.setAttribute('class', 'circ-arc ' + (n.gender === 'female' ? 'female' : 'male'));
-      if(visibleChildren(n).length){
-        path.addEventListener('click', () => centerCircularOn(n));
-      }
+      // every wedge opens its own circular tree when pressed, even a leaf
+      // with no children (it simply opens with nothing further outward
+      // beyond the center circle)
+      path.addEventListener('click', () => centerCircularOn(n));
       circSvgEl.appendChild(path);
 
       // This is just a cheap "is there any point even trying" pre-check —
@@ -692,9 +774,8 @@
     genText.setAttribute('text-anchor', 'middle');
     genText.textContent = 'الجيل ' + (node._depth + 1);
     g.appendChild(genText);
-    if(node._parent){
-      g.addEventListener('click', () => centerCircularOn(node._parent));
-    }
+    // pressing the center circle itself intentionally does nothing — going
+    // back up to the parent happens only via the "⬆ للأب" button
     circSvgEl.appendChild(g);
 
     circUpBtn.disabled = !node._parent;
@@ -840,23 +921,16 @@
   frag.appendChild(buildNode(data));
   viewport.appendChild(frag);
 
-  // ---- expand/collapse all: in the circular design these instead step the
-  // number of generations shown outward/inward ----
+  // ---- the list page's own expand/collapse-all controls (this sidebar is
+  // only ever shown on the شجرة الصالح page now — the أقربائي page has its
+  // own separate toolbar for stepping generations in/out) ----
   document.getElementById('expandAllBtn').onclick = () => {
-    if(document.documentElement.getAttribute('data-theme') === 'circular'){
-      circExpandDepth();
-      return;
-    }
     allNodes.forEach(n => {
       if(n._childWrap) n._childWrap.classList.remove('collapsed');
       if(n._row){ const t = n._row.querySelector('.toggle'); if(t) t.classList.add('open'); }
     });
   };
   document.getElementById('collapseAllBtn').onclick = () => {
-    if(document.documentElement.getAttribute('data-theme') === 'circular'){
-      circCollapseDepth();
-      return;
-    }
     allNodes.forEach(n => {
       if(n === data) return;
       if(n._childWrap) n._childWrap.classList.add('collapsed');
@@ -866,7 +940,25 @@
   document.getElementById('hideFemaleChk').addEventListener('change', (e) => {
     document.body.classList.toggle('hide-female', e.target.checked);
     hideFemales = e.target.checked;
+    const circChk = document.getElementById('circHideFemaleChk');
+    if(circChk) circChk.checked = e.target.checked;
     if(circCenterNode) renderCircular();
+  });
+
+  // ---- أقربائي page's own toolbar (generation stepping + hide-females,
+  // independent of the list page's sidebar controls) ----
+  document.getElementById('circExpandBtn').addEventListener('click', circExpandDepth);
+  document.getElementById('circCollapseBtn').addEventListener('click', circCollapseDepth);
+  document.getElementById('circHideFemaleChk').addEventListener('change', (e) => {
+    document.body.classList.toggle('hide-female', e.target.checked);
+    hideFemales = e.target.checked;
+    const sideChk = document.getElementById('hideFemaleChk');
+    if(sideChk) sideChk.checked = e.target.checked;
+    if(circCenterNode) renderCircular();
+  });
+  document.getElementById('relNewSearchBtn').addEventListener('click', () => {
+    resetRelativesForm();
+    showRelativesSearchForm();
   });
 
   // ---- search (Arabic-aware normalization + cascading suggestions) ----
@@ -1041,12 +1133,14 @@
   const resultsBox = document.getElementById('searchResults');
   function runSearch(){
     const fields = currentFields();
-    if(!fields.name && !fields.father && !fields.grandfather && !fields.ggf && !fields.branch){
-      resultsBox.style.display = 'none'; resultsBox.innerHTML=''; return;
+    if(!fields.name || !fields.father || !fields.grandfather || !fields.ggf || !fields.branch){
+      resultsBox.innerHTML = '<div class="error">الأسماء الخمسة جميعها مطلوبة — الاسم، الأب، الجد، الجد الأكبر، والفرع الرئيسي</div>';
+      resultsBox.style.display = 'block';
+      return;
     }
     const matches = search(fields);
     if(!matches.length){
-      resultsBox.innerHTML = '<div>لا نتائج — جرّب الاسم فقط، أو الاسم ثم الأب</div>';
+      resultsBox.innerHTML = '<div class="error">لا نتائج — تأكد من الأسماء الخمسة</div>';
       resultsBox.style.display = 'block';
       return;
     }
@@ -1058,12 +1152,7 @@
     resultsBox.querySelectorAll('div[data-i]').forEach(elm => {
       elm.addEventListener('click', () => {
         const idx = +elm.getAttribute('data-i');
-        if(document.documentElement.getAttribute('data-theme') === 'circular'){
-          centerCircularOn(matches[idx]);
-          if(treeSidebarEl) treeSidebarEl.classList.add('collapsed');
-        } else {
-          revealNode(matches[idx]);
-        }
+        revealNode(matches[idx]);
         resultsBox.style.display = 'none';
       });
     });
@@ -1078,6 +1167,103 @@
   ].forEach(inp => inp.addEventListener('keydown', e => { if(e.key === 'Enter') runSearch(); }));
   document.addEventListener('click', (e) => {
     if(!e.target.closest('.search-panel-wrap')) resultsBox.style.display = 'none';
+  });
+
+  // ---- أقربائي page: a separate 5-mandatory-field search that resolves a
+  // single person, then opens the circular tree centered on THEIR
+  // grandfather (two generations up) — showing that person together with
+  // their father, uncles/aunts, and siblings, a tight "relatives" view ----
+  function relativesCurrentFields(){
+    return {
+      name: fieldTerm('relName'),
+      father: fieldTerm('relFather'),
+      grandfather: fieldTerm('relGrandfather'),
+      ggf: fieldTerm('relGGFather'),
+      branch: fieldTerm('relBranch')
+    };
+  }
+  function relRefreshFatherOptions(){
+    const f = relativesCurrentFields();
+    setFieldOptions('relFather', filterCandidates({ name: f.name }).map(n => ancestorChain(n)[1]));
+  }
+  function relRefreshGrandfatherOptions(){
+    const f = relativesCurrentFields();
+    setFieldOptions('relGrandfather', filterCandidates({ name: f.name, father: f.father }).map(n => ancestorChain(n)[2]));
+  }
+  function relRefreshGgfOptions(){
+    const f = relativesCurrentFields();
+    setFieldOptions('relGgf', filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather }).map(n => ancestorChain(n)[3]));
+  }
+  function relRefreshBranchOptions(){
+    const f = relativesCurrentFields();
+    setFieldOptions('relBranch', filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather, ggf: f.ggf }).map(n => n._branchName));
+  }
+  setFieldOptions('relName', allNodes.map(n => n.name));
+  relRefreshFatherOptions();
+  relRefreshGrandfatherOptions();
+  relRefreshGgfOptions();
+  relRefreshBranchOptions();
+
+  wireSuggestBox(document.getElementById('relName'), document.getElementById('relNameSuggestBox'), 'relName');
+  wireSuggestBox(document.getElementById('relFather'), document.getElementById('relFatherSuggestBox'), 'relFather');
+  wireSuggestBox(document.getElementById('relGrandfather'), document.getElementById('relGrandfatherSuggestBox'), 'relGrandfather');
+  wireSuggestBox(document.getElementById('relGGFather'), document.getElementById('relGgfatherSuggestBox'), 'relGgf');
+  wireSuggestBox(document.getElementById('relBranch'), document.getElementById('relBranchSuggestBox'), 'relBranch');
+
+  document.getElementById('relName').addEventListener('input', relRefreshFatherOptions);
+  document.getElementById('relFather').addEventListener('input', relRefreshGrandfatherOptions);
+  document.getElementById('relGrandfather').addEventListener('input', relRefreshGgfOptions);
+  document.getElementById('relGGFather').addEventListener('input', relRefreshBranchOptions);
+
+  function openRelativesTreeFor(matchNode){
+    let target = matchNode;
+    if(target._parent) target = target._parent;
+    if(target._parent) target = target._parent;
+    showRelativesChart();
+    centerCircularOn(target);
+  }
+  const relResultsBox = document.getElementById('relResults');
+  function runRelativesSearch(){
+    const fields = relativesCurrentFields();
+    if(!fields.name || !fields.father || !fields.grandfather || !fields.ggf || !fields.branch){
+      relResultsBox.innerHTML = '<div class="error">الأسماء الخمسة جميعها مطلوبة — الاسم، الأب، الجد، الجد الأكبر، والفرع الرئيسي</div>';
+      relResultsBox.style.display = 'block';
+      return;
+    }
+    const matches = search(fields);
+    if(matches.length === 1){
+      relResultsBox.style.display = 'none';
+      openRelativesTreeFor(matches[0]);
+      return;
+    }
+    if(!matches.length){
+      relResultsBox.innerHTML = '<div class="error">لم يتم العثور على نتيجة مطابقة — تأكد من الأسماء الخمسة</div>';
+      relResultsBox.style.display = 'block';
+      return;
+    }
+    relResultsBox.innerHTML = matches.map((n,i) => {
+      const path = ancestorChain(n).join(' ← ');
+      return `<div data-i="${i}">${n.name}<div class="path">${path}</div></div>`;
+    }).join('');
+    relResultsBox.style.display = 'block';
+    relResultsBox.querySelectorAll('div[data-i]').forEach(elm => {
+      elm.addEventListener('click', () => {
+        const idx = +elm.getAttribute('data-i');
+        relResultsBox.style.display = 'none';
+        openRelativesTreeFor(matches[idx]);
+      });
+    });
+  }
+  document.getElementById('relSearchBtn').addEventListener('click', runRelativesSearch);
+  [
+    document.getElementById('relName'),
+    document.getElementById('relFather'),
+    document.getElementById('relGrandfather'),
+    document.getElementById('relGGFather'),
+    document.getElementById('relBranch')
+  ].forEach(inp => inp.addEventListener('keydown', e => { if(e.key === 'Enter') runRelativesSearch(); }));
+  document.addEventListener('click', (e) => {
+    if(!e.target.closest('.relatives-search-panel .search-panel-wrap')) relResultsBox.style.display = 'none';
   });
   } // end boot()
 
@@ -1116,7 +1302,6 @@
     applyStoredAdditions(additions);
     applyStoredCorrections(corrections);
     boot();
-    renderCircular();
   }).catch(err => {
     console.error('failed to load tree data:', err);
     document.getElementById('loadNote').textContent = 'تعذر تحميل بيانات الشجرة. تأكد أن data/tree.json موجود بجانب هذه الصفحة.';
