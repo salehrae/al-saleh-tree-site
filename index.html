@@ -766,7 +766,14 @@
       text.setAttribute('transform', `rotate(${rotDeg.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)})`);
       text.textContent = n.name;
       circSvgEl.appendChild(text);
-      const available = band * 0.85;
+      // The label is centered at labelR, not at the band's own middle (the
+      // three staggered male tiers sit at 0.24/0.5/0.76 of the band), so the
+      // real radial budget is twice whichever side — r0 or r1 — is CLOSER,
+      // not a flat fraction of the whole band. Using the whole band here let
+      // edge-tier names overrun their tier's actual side of room and get
+      // physically chopped off by the wedge's own clip-path instead of
+      // cleanly ellipsis-truncated.
+      const available = 2 * Math.min(labelR - r0, r1 - labelR) * 0.92;
       let bbox = text.getBBox();
       if(bbox.width > available && n.name.length > 2){
         let lo = 1, hi = n.name.length - 1, best = n.name.slice(0, 1) + '…';
