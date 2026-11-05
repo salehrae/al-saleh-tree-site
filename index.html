@@ -307,9 +307,7 @@
       <div class="circular-chart-panel" id="circularChartPanel">
         <div class="circular-toolbar">
           <button type="button" id="relNewSearchBtn">🔍 بحث جديد</button>
-          <button type="button" id="circUpBtn">⬆ للأب</button>
-          <button type="button" id="circExpandBtn">➕ جيل</button>
-          <button type="button" id="circCollapseBtn">➖ جيل</button>
+          <button type="button" id="circBackBtn">⬅ رجوع</button>
           <button type="button" id="circZoomResetBtn">↺ الحجم الأصلي</button>
           <label class="hide-female-toggle"><input type="checkbox" id="circHideFemaleChk"> إخفاء الإناث</label>
         </div>
@@ -415,6 +413,10 @@
 
   // ================= circular (sunburst) view =================
   let circCenterNode = null;
+  // every centering (except a fresh search result) pushes the node being
+  // left onto this stack, so "رجوع" can retrace the exact path taken,
+  // however it was taken — not just "go to the parent"
+  let circHistory = [];
   let circMaxDepth = 4;
   const CIRC_MAX_RINGS = 9;
   const CIRC_MAX_OUTER = 300; // outer edge radius the rings must fit inside, in viewBox units
@@ -441,7 +443,7 @@
   }
   const circSvgEl = document.getElementById('circSvg');
   const circCaptionEl = document.getElementById('circCaption');
-  const circUpBtn = document.getElementById('circUpBtn');
+  const circBackBtn = document.getElementById('circBackBtn');
 
   // ---- pinch / wheel zoom + drag pan for the circular chart only ----
   const circZoomWrapEl = document.getElementById('circZoomWrap');
@@ -601,10 +603,30 @@
            `L ${p3.x.toFixed(2)} ${p3.y.toFixed(2)} ` +
            `A ${r0.toFixed(2)} ${r0.toFixed(2)} 0 ${large} 0 ${p0.x.toFixed(2)} ${p0.y.toFixed(2)} Z`;
   }
-  function centerCircularOn(node){
+  function updateCircBackBtn(){
+    circBackBtn.disabled = circHistory.length === 0;
+  }
+  // resetHistory=true marks a fresh starting point (a brand-new relatives
+  // search result) — رجوع has nothing to retrace past that point. Any other
+  // centering (clicking a wedge) pushes the node being left so رجوع can
+  // step back through it, in whatever order it was actually visited.
+  function centerCircularOn(node, resetHistory){
+    if(resetHistory){
+      circHistory = [];
+    } else if(circCenterNode){
+      circHistory.push(circCenterNode);
+    }
     circCenterNode = node;
     resetCircZoom();
     renderCircular();
+    updateCircBackBtn();
+  }
+  function circGoBack(){
+    if(!circHistory.length) return;
+    circCenterNode = circHistory.pop();
+    resetCircZoom();
+    renderCircular();
+    updateCircBackBtn();
   }
   function renderCircular(){
     whenFontsReady(renderCircularNow);
@@ -775,23 +797,12 @@
     genText.textContent = 'الجيل ' + (node._depth + 1);
     g.appendChild(genText);
     // pressing the center circle itself intentionally does nothing — going
-    // back up to the parent happens only via the "⬆ للأب" button
+    // back happens only via the "⬅ رجوع" button
     circSvgEl.appendChild(g);
 
-    circUpBtn.disabled = !node._parent;
     circCaptionEl.textContent = `${deepestRendered} أجيال ظاهرة   ${maleCount} ذكور   ${femaleCount} إناث`;
   }
-  circUpBtn.addEventListener('click', () => {
-    if(circCenterNode && circCenterNode._parent) centerCircularOn(circCenterNode._parent);
-  });
-  function circExpandDepth(){
-    circMaxDepth = Math.min(CIRC_MAX_RINGS, circMaxDepth + 1);
-    renderCircular();
-  }
-  function circCollapseDepth(){
-    circMaxDepth = Math.max(1, circMaxDepth - 1);
-    renderCircular();
-  }
+  circBackBtn.addEventListener('click', circGoBack);
 
   function augment(node, depth, parent){
     node._depth = depth;
@@ -945,10 +956,8 @@
     if(circCenterNode) renderCircular();
   });
 
-  // ---- أقربائي page's own toolbar (generation stepping + hide-females,
-  // independent of the list page's sidebar controls) ----
-  document.getElementById('circExpandBtn').addEventListener('click', circExpandDepth);
-  document.getElementById('circCollapseBtn').addEventListener('click', circCollapseDepth);
+  // ---- أقربائي page's own hide-females toggle, independent of the list
+  // page's sidebar control ----
   document.getElementById('circHideFemaleChk').addEventListener('change', (e) => {
     document.body.classList.toggle('hide-female', e.target.checked);
     hideFemales = e.target.checked;
@@ -1220,7 +1229,7 @@
     if(target._parent) target = target._parent;
     if(target._parent) target = target._parent;
     showRelativesChart();
-    centerCircularOn(target);
+    centerCircularOn(target, true); // fresh starting point — nothing to رجوع to yet
   }
   const relResultsBox = document.getElementById('relResults');
   function runRelativesSearch(){
