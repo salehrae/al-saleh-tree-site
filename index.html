@@ -248,12 +248,16 @@
   .circ-arc{ cursor:pointer; stroke:#fff; stroke-width:1.5; }
   .circ-arc.male{ fill:#bcd9ef; }
   .circ-arc.female{ fill:#f6c9d3; }
+  /* the exact person searched for on the أقربائي form, highlighted on the
+     grandfather-centered tree that opens so they're easy to spot among
+     their siblings/cousins */
+  .circ-arc.highlight{ fill:#ffd43b; }
   .circ-arc:hover{ filter:brightness(0.95); }
   .circ-label{ font-family:'Tajawal','Cairo','Tahoma',sans-serif; font-weight:700; font-size:2.5px; fill:#1c2e24; pointer-events:none; }
   .circ-center{ cursor:default; }
-  .circ-center-circle{ fill:var(--male); stroke:#fff; stroke-width:.6; }
-  .circ-center-name{ font-family:'Cairo','Tahoma',sans-serif; font-weight:800; fill:#fff; font-size:3.4px; }
-  .circ-center-gen{ font-family:'Cairo','Tahoma',sans-serif; fill:#d9ecdf; font-size:2.2px; }
+  .circ-center-circle{ fill:var(--male); stroke:#fff; stroke-width:3; }
+  .circ-center-name{ font-family:'Cairo','Tahoma',sans-serif; font-weight:800; fill:#fff; font-size:17px; }
+  .circ-center-gen{ font-family:'Cairo','Tahoma',sans-serif; fill:#d9ecdf; font-size:11px; }
   .circ-caption{ color:#3f5c4c; font-size:.88em; margin:10px 0 16px; font-weight:600; }
 </style>
 </head>
@@ -310,6 +314,7 @@
       </div>
 
       <div class="circular-chart-panel" id="circularChartPanel">
+        <p class="list-hint">أضغط على أي أسم لفتح شجرته</p>
         <div class="circular-toolbar">
           <button type="button" id="relNewSearchBtn">🔍 بحث جديد</button>
           <button type="button" id="circBackBtn">⬅ رجوع</button>
@@ -422,6 +427,10 @@
   // left onto this stack, so "رجوع" can retrace the exact path taken,
   // however it was taken — not just "go to the parent"
   let circHistory = [];
+  // the exact person found by the أقربائي 5-name search, highlighted in
+  // yellow wherever they appear as a wedge — set on a fresh search result,
+  // left alone otherwise so the highlight survives drilling in/out/رجوع
+  let circHighlightNode = null;
   let circMaxDepth = 4;
   const CIRC_MAX_RINGS = 9;
   const CIRC_MAX_OUTER = 300; // outer edge radius the rings must fit inside, in viewBox units
@@ -592,6 +601,7 @@
     });
     const relResultsBox = document.getElementById('relResults');
     if(relResultsBox){ relResultsBox.innerHTML = ''; relResultsBox.style.display = 'none'; }
+    circHighlightNode = null;
   }
 
   function polarPoint(cx, cy, r, angle){
@@ -641,7 +651,7 @@
     if(!circCenterNode) circCenterNode = data;
     const node = circCenterNode;
     const cx = 320, cy = 320;
-    const centerR = 11.2; // 0.2× the original 56
+    const centerR = 56;
     const depth = Math.max(1, Math.min(circMaxDepth, CIRC_MAX_RINGS));
     // shrink ring thickness as more generations are requested, so any depth
     // up to CIRC_MAX_RINGS always fits inside the fixed-size chart
@@ -742,7 +752,7 @@
       deepestRendered = Math.max(deepestRendered, ring);
       const path = document.createElementNS(svgNS, 'path');
       path.setAttribute('d', arcPath(cx, cy, r0, r1, a0, a1));
-      path.setAttribute('class', 'circ-arc ' + (n.gender === 'female' ? 'female' : 'male'));
+      path.setAttribute('class', 'circ-arc ' + (n.gender === 'female' ? 'female' : 'male') + (n === circHighlightNode ? ' highlight' : ''));
       // every wedge opens its own circular tree when pressed, even a leaf
       // with no children (it simply opens with nothing further outward
       // beyond the center circle)
@@ -792,13 +802,13 @@
     g.appendChild(circle);
     const nameText = document.createElementNS(svgNS, 'text');
     nameText.setAttribute('class', 'circ-center-name');
-    nameText.setAttribute('x', cx); nameText.setAttribute('y', cy - 1.2);
+    nameText.setAttribute('x', cx); nameText.setAttribute('y', cy - 6);
     nameText.setAttribute('text-anchor', 'middle');
     nameText.textContent = node.name;
     g.appendChild(nameText);
     const genText = document.createElementNS(svgNS, 'text');
     genText.setAttribute('class', 'circ-center-gen');
-    genText.setAttribute('x', cx); genText.setAttribute('y', cy + 2.8);
+    genText.setAttribute('x', cx); genText.setAttribute('y', cy + 14);
     genText.setAttribute('text-anchor', 'middle');
     genText.textContent = 'الجيل ' + (node._depth + 1);
     g.appendChild(genText);
@@ -1234,6 +1244,7 @@
     let target = matchNode;
     if(target._parent) target = target._parent;
     if(target._parent) target = target._parent;
+    circHighlightNode = matchNode; // yellow-highlight the exact person searched for
     showRelativesChart();
     centerCircularOn(target, true); // fresh starting point — nothing to رجوع to yet
   }
