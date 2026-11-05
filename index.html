@@ -444,7 +444,7 @@
   let circHighlightNode = null;
   let circMaxDepth = 4;
   const CIRC_MAX_RINGS = 9;
-  const CIRC_MAX_OUTER = 300; // outer edge radius the rings must fit inside, in viewBox units
+  const CIRC_MAX_OUTER = 308; // outer edge radius the rings must fit inside, in viewBox units
   const CIRC_LABEL_FONT_SIZE = 2.5; // kept in sync with the .circ-label font-size in <style>
   let hideFemales = false;
   // The chart measures label widths with getBBox() to decide how much of
@@ -701,8 +701,15 @@
     const centerR = 56;
     const depth = Math.max(1, Math.min(circMaxDepth, CIRC_MAX_RINGS));
     // shrink ring thickness as more generations are requested, so any depth
-    // up to CIRC_MAX_RINGS always fits inside the fixed-size chart
-    const ringThickness = Math.min(46, (CIRC_MAX_OUTER - centerR) / depth);
+    // up to CIRC_MAX_RINGS always fits inside the fixed-size chart. The cap
+    // (60) is just a sanity ceiling for when few rings are shown — at the
+    // fixed depth=4 this always renders at, the real limit is the second
+    // term, which now uses the canvas's full available radius instead of
+    // leaving ~60 viewBox units of unused margin outside the last ring like
+    // before, so every ring is noticeably thicker and names have more room
+    // before truncating — same font size, same on-screen chart size, just
+    // reclaiming space that was going unused.
+    const ringThickness = Math.min(60, (CIRC_MAX_OUTER - centerR) / depth);
     const svgNS = 'http://www.w3.org/2000/svg';
     circSvgEl.innerHTML = '';
     const defsEl = document.createElementNS(svgNS, 'defs');
