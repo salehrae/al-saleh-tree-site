@@ -17,7 +17,7 @@
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
     --gold:#2f8f5e;
@@ -233,7 +233,7 @@
   .circ-arc.male{ fill:#bcd9ef; }
   .circ-arc.female{ fill:#f6c9d3; }
   .circ-arc:hover{ filter:brightness(0.95); }
-  .circ-label{ font-family:'Cairo','Tahoma',sans-serif; font-size:5px; fill:#1c2e24; pointer-events:none; }
+  .circ-label{ font-family:'Tajawal','Cairo','Tahoma',sans-serif; font-size:5px; fill:#1c2e24; pointer-events:none; }
   .circ-center{ cursor:pointer; }
   .circ-center-circle{ fill:var(--male); stroke:#fff; stroke-width:3; }
   .circ-center-name{ font-family:'Cairo','Tahoma',sans-serif; font-weight:800; fill:#fff; font-size:17px; }
@@ -362,16 +362,19 @@
   const CIRC_LABEL_FONT_SIZE = 5; // kept in sync with the .circ-label font-size in <style>
   let hideFemales = false;
   // The chart measures label widths with getBBox() to decide how much of
-  // each name fits in its wedge, but Cairo's glyphs are noticeably wider
-  // than the Tahoma fallback the browser uses while the webfont is still
-  // loading — measuring before Cairo is ready makes labels overflow once it
-  // swaps in. Every render waits for it (free after the first time, since
-  // the browser caches the font load).
+  // each name fits in its wedge, but a web font's glyphs are noticeably
+  // different from the Tahoma fallback the browser uses while it's still
+  // loading — measuring too early makes labels overflow once it swaps in.
+  // Every render waits for both fonts actually used in the chart: Tajawal
+  // (the small radiating names — picked specifically for being narrower
+  // than Cairo, so more names fit without crowding) and Cairo (the big
+  // center label). Free after the first time, since the browser caches it.
   function whenFontsReady(cb){
     if(window.document && document.fonts && document.fonts.load){
       Promise.all([
         document.fonts.load('400 13px Cairo').catch(() => {}),
-        document.fonts.load('800 17px Cairo').catch(() => {})
+        document.fonts.load('800 17px Cairo').catch(() => {}),
+        document.fonts.load('400 5px Tajawal').catch(() => {})
       ]).then(() => document.fonts.ready).then(cb, cb);
     } else {
       cb();
