@@ -570,12 +570,15 @@
     // Every name renders as a single, whole, properly-shaped word — never
     // split into letters, so Arabic joining always stays intact. The text
     // is rotated to read along the radius (vertically, outward from the
-    // center), and the space it must fit inside is the RING'S OWN
-    // THICKNESS (r1-r0), not the angular width of the wedge — because once
-    // the text is rotated to point along the spoke, thickness is the axis
-    // it actually runs along. labelR lets callers place a label at any
-    // radius inside the ring (used for the male top/middle/bottom stagger
-    // below); a clip-path on the wedge itself is kept as a hard backstop.
+    // center). Two different constraints apply on its two axes: along the
+    // radius, the limit is the RING'S OWN THICKNESS (r1-r0) — too long a
+    // name there gets truncated with "…", which looks fine. Across the
+    // radius (the wedge's actual angular width at this point, converted to
+    // a real distance), the limit is the font's own height — there's no
+    // good way to "truncate" that axis, so rather than show a sliver of a
+    // clipped, half-cut letter (which reads as visual noise), a wedge too
+    // thin for even one full character gets no label at all. A clip-path
+    // on the wedge itself is kept as a hard backstop either way.
     function renderRadialLabel(n, r0, r1, a0, a1, midA, labelR){
       const band = r1 - r0;
       const p = polarPoint(cx, cy, labelR, midA);
@@ -608,6 +611,17 @@
         text.remove();
         return;
       }
+      // Safety net only: the pre-check in addArc already screens out wedges
+      // too thin for even one character, so this should rarely fire. It
+      // exists for the rare case where the font that's actually loaded (the
+      // page measures with whichever one the browser has ready) turns out
+      // taller than expected — better to drop a label outright than show a
+      // visibly decapitated letter.
+      const tangentialSpace = (a1 - a0) * labelR;
+      if(bbox.height > tangentialSpace * 2.2){
+        text.remove();
+        return;
+      }
       text.setAttribute('clip-path', `url(#${makeClip(r0, r1, a0, a1)})`);
     }
 
@@ -622,16 +636,16 @@
       }
       circSvgEl.appendChild(path);
 
+      // This is just a cheap "is there any point even trying" pre-check —
+      // the real, precise decision (does a full character actually fit
+      // without being clipped) happens inside renderRadialLabel once the
+      // text exists to measure.
       const angWidth = a1 - a0;
-      if(angWidth > 0.018){
-        const midA = (a0 + a1) / 2;
-        const band = r1 - r0;
-        if(n.gender === 'female'){
-          renderRadialLabel(n, r0, r1, a0, a1, midA, r0 + band * 0.5);
-        } else {
-          const tierFrac = [0.24, 0.5, 0.76][(siblingIdx || 0) % 3];
-          renderRadialLabel(n, r0, r1, a0, a1, midA, r0 + band * tierFrac);
-        }
+      const midA = (a0 + a1) / 2;
+      const band = r1 - r0;
+      const labelR = n.gender === 'female' ? (r0 + band * 0.5) : (r0 + band * [0.24, 0.5, 0.76][(siblingIdx || 0) % 3]);
+      if(angWidth * labelR > 3){
+        renderRadialLabel(n, r0, r1, a0, a1, midA, labelR);
       }
 
       const kids = visibleChildren(n);
