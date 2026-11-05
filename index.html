@@ -709,13 +709,18 @@
     circSvgEl.appendChild(defsEl);
     let clipCounter = 0;
 
-    // Every sibling gets an EQUAL share of the arc at its level, regardless
-    // of family size. Weighting by family size (even compressed with sqrt,
-    // as this used to do) always left someone with a thinner wedge than
-    // their siblings, and a thin enough wedge can't fit a name label at
-    // all. Equal shares means equal label visibility for everyone.
+    // Angular share of a child is based on sqrt(family size) rather than the
+    // raw family size. Daughters never carry children forward in this data
+    // (every woman is a leaf, _total===1), so next to a brother with a large
+    // recorded family she'd be allocated a sliver too thin to ever label.
+    // Compressing with sqrt still shows who has the bigger family, but stops
+    // leaves from being crushed to invisibility by one prolific sibling.
+    // (Equal-for-everyone was tried instead and made it worse: giving a
+    // small family the same share as a huge one starves the huge one's own
+    // many descendants of room a few rings out, wiping out whole outer
+    // rings of labels — reverted.)
     function spanWeight(n){
-      return 1;
+      return Math.sqrt(n._total);
     }
 
     function visibleChildren(n){
