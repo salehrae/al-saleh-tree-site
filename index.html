@@ -233,7 +233,7 @@
   .circ-arc.male{ fill:#bcd9ef; }
   .circ-arc.female{ fill:#f6c9d3; }
   .circ-arc:hover{ filter:brightness(0.95); }
-  .circ-label{ font-family:'Cairo','Tahoma',sans-serif; font-size:10px; fill:#1c2e24; pointer-events:none; }
+  .circ-label{ font-family:'Cairo','Tahoma',sans-serif; font-size:5px; fill:#1c2e24; pointer-events:none; }
   .circ-center{ cursor:pointer; }
   .circ-center-circle{ fill:var(--male); stroke:#fff; stroke-width:3; }
   .circ-center-name{ font-family:'Cairo','Tahoma',sans-serif; font-weight:800; fill:#fff; font-size:17px; }
@@ -359,7 +359,7 @@
   let circMaxDepth = 4;
   const CIRC_MAX_RINGS = 9;
   const CIRC_MAX_OUTER = 300; // outer edge radius the rings must fit inside, in viewBox units
-  const CIRC_LABEL_FONT_SIZE = 10; // kept in sync with the .circ-label font-size in <style>, used to size the female letter-columns
+  const CIRC_LABEL_FONT_SIZE = 5; // kept in sync with the .circ-label font-size in <style>
   let hideFemales = false;
   // The chart measures label widths with getBBox() to decide how much of
   // each name fits in its wedge, but Cairo's glyphs are noticeably wider
