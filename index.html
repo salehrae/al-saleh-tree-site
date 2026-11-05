@@ -773,13 +773,9 @@
       text.setAttribute('transform', `rotate(${rotDeg.toFixed(2)} ${p.x.toFixed(2)} ${p.y.toFixed(2)})`);
       text.textContent = n.name;
       circSvgEl.appendChild(text);
-      // The label is centered at labelR, not at the band's own middle (the
-      // three staggered male tiers sit at 0.24/0.5/0.76 of the band), so the
-      // real radial budget is twice whichever side — r0 or r1 — is CLOSER,
-      // not a flat fraction of the whole band. Using the whole band here let
-      // edge-tier names overrun their tier's actual side of room and get
-      // physically chopped off by the wedge's own clip-path instead of
-      // cleanly ellipsis-truncated.
+      // labelR now always sits at the exact middle of the band (r0..r1), so
+      // this comes out to ~92% of the full band for every label — the
+      // maximum room physically possible without risking a clipped edge.
       const available = 2 * Math.min(labelR - r0, r1 - labelR) * 0.92;
       let bbox = text.getBBox();
       if(bbox.width > available && n.name.length > 2){
@@ -831,7 +827,17 @@
       const angWidth = a1 - a0;
       const midA = (a0 + a1) / 2;
       const band = r1 - r0;
-      const labelR = n.gender === 'female' ? (r0 + band * 0.5) : (r0 + band * [0.24, 0.5, 0.76][(siblingIdx || 0) % 3]);
+      // Every label — male or female — sits at the exact middle of its own
+      // wedge's band now. Male names used to be staggered across three
+      // radial tiers (0.24/0.5/0.76) to vary the look, but every label
+      // already gets its own exclusive clip-path, so two wedges can never
+      // bleed into each other regardless of where within the band a label
+      // sits — the staggering bought no actual overlap protection. What it
+      // DID cost: two of every three male names sat on a tier with only
+      // ~24% of the band's room on their nearer side instead of the full
+      // 50% a centered label gets, truncating them far more than necessary.
+      // Centering every label fixes that directly.
+      const labelR = r0 + band * 0.5;
       if(angWidth * labelR > 3){
         renderRadialLabel(n, r0, r1, a0, a1, midA, labelR);
       }
