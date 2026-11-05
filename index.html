@@ -71,16 +71,16 @@
   .search-field{ display:flex; flex-direction:column; gap:4px; position:relative; }
   .suggest-box{
     position:absolute; top:100%; right:0; left:0; z-index:30; margin-top:4px;
-    background:#fff; border:1.5px solid #ddd; border-radius:10px;
+    background:#161f1a; border:1.5px solid #000; border-radius:10px;
     max-height:220px; overflow-y:auto; display:none;
-    box-shadow:0 6px 18px rgba(0,0,0,.18);
+    box-shadow:0 6px 18px rgba(0,0,0,.35);
   }
   .suggest-box.open{ display:block; }
-  .suggest-box div{ padding:10px 12px; font-size:.9em; cursor:pointer; border-bottom:1px solid #f1f1f1; }
+  .suggest-box div{ padding:10px 12px; font-size:.9em; font-weight:700; color:#fff; cursor:pointer; border-bottom:1px solid #333; }
   .suggest-box div:last-child{ border-bottom:none; }
-  .suggest-box div:hover{ background:#e6f4ea; }
-  .suggest-box div.empty{ color:#999; cursor:default; }
-  .suggest-box div.empty:hover{ background:#fff; }
+  .suggest-box div:hover{ background:#2f4335; }
+  .suggest-box div.empty{ color:#9aa89f; cursor:default; }
+  .suggest-box div.empty:hover{ background:#161f1a; }
   .search-field label{ font-size:.78em; color:#3f5c4c; font-weight:700; padding:0 3px; }
   .search-field input{
     font-family:inherit; font-size:.9em; padding:8px 12px; border-radius:10px;
@@ -259,6 +259,15 @@
   .circ-center-name{ font-family:'Cairo','Tahoma',sans-serif; font-weight:800; fill:#fff; font-size:17px; }
   .circ-center-gen{ font-family:'Cairo','Tahoma',sans-serif; fill:#d9ecdf; font-size:11px; }
   .circ-caption{ color:#3f5c4c; font-size:.88em; margin:10px 0 16px; font-weight:600; }
+
+  /* ================= "Arabic names only" warning toast ================= */
+  .arabic-toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(16px);
+    background:#1c2e24; color:#fff; font-weight:700; font-size:.92em;
+    padding:12px 22px; border-radius:999px; box-shadow:0 8px 22px rgba(0,0,0,.35);
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:999; max-width:90vw; text-align:center;
+  }
+  .arabic-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -372,6 +381,8 @@
       </div>
     </aside>
   </div>
+
+  <div class="arabic-toast" id="arabicOnlyToast">الأسماء يجب أن تكتب باللغة العربية</div>
 
 </div>
 
@@ -604,6 +615,42 @@
     circHighlightNode = null;
   }
 
+  // ---- "names must be Arabic" enforcement, on every name field across both
+  // pages. Any Latin letter typed is stripped right back out and a toast
+  // pops up to explain why, instead of silently accepting it (the search
+  // logic already ignores non-Arabic characters, but leaving them visible
+  // in the box would just be confusing). DOM-only, so this is wired up
+  // immediately — no need to wait for the tree data to load.
+  const LATIN_LETTERS = /[A-Za-z]/;
+  const arabicToastEl = document.getElementById('arabicOnlyToast');
+  let arabicToastTimer = null;
+  function showArabicOnlyToast(){
+    if(!arabicToastEl) return;
+    arabicToastEl.classList.add('show');
+    clearTimeout(arabicToastTimer);
+    arabicToastTimer = setTimeout(() => arabicToastEl.classList.remove('show'), 2500);
+  }
+  function enforceArabicOnly(inputEl){
+    if(!inputEl) return;
+    inputEl.addEventListener('input', () => {
+      if(LATIN_LETTERS.test(inputEl.value)){
+        const pos = inputEl.selectionStart;
+        const before = inputEl.value;
+        inputEl.value = inputEl.value.replace(/[A-Za-z]/g, '');
+        // keep the caret roughly where typing left off, now that some
+        // characters were removed out from under it
+        const removedBeforeCaret = before.slice(0, pos).replace(/[^A-Za-z]/g, '').length;
+        const newPos = Math.max(0, pos - removedBeforeCaret);
+        try{ inputEl.setSelectionRange(newPos, newPos); }catch(e){}
+        showArabicOnlyToast();
+      }
+    });
+  }
+  [
+    'searchName','searchFather','searchGrandfather','searchGGFather','searchBranch',
+    'relName','relFather','relGrandfather','relGGFather','relBranch'
+  ].forEach(id => enforceArabicOnly(document.getElementById(id)));
+
   function polarPoint(cx, cy, r, angle){
     return { x: cx + r * Math.sin(angle), y: cy - r * Math.cos(angle) };
   }
@@ -662,14 +709,13 @@
     circSvgEl.appendChild(defsEl);
     let clipCounter = 0;
 
-    // Angular share of a child is based on sqrt(family size) rather than the
-    // raw family size. Daughters never carry children forward in this data
-    // (every woman is a leaf, _total===1), so next to a brother with a large
-    // recorded family she'd be allocated a sliver too thin to ever label.
-    // Compressing with sqrt still shows who has the bigger family, but stops
-    // leaves from being crushed to invisibility by one prolific sibling.
+    // Every sibling gets an EQUAL share of the arc at its level, regardless
+    // of family size. Weighting by family size (even compressed with sqrt,
+    // as this used to do) always left someone with a thinner wedge than
+    // their siblings, and a thin enough wedge can't fit a name label at
+    // all. Equal shares means equal label visibility for everyone.
     function spanWeight(n){
-      return Math.sqrt(n._total);
+      return 1;
     }
 
     function visibleChildren(n){
