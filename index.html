@@ -222,7 +222,13 @@
     padding:8px 14px; border-radius:999px; font-weight:700;
   }
   .circular-toolbar button:disabled{ opacity:.4; cursor:default; }
-  #circSvg{ width:100%; max-width:560px; height:auto; margin:10px auto 0; display:block; touch-action:manipulation; }
+  .circ-zoom-wrap{
+    width:100%; max-width:560px; margin:10px auto 0; overflow:hidden;
+    border-radius:12px; touch-action:none; cursor:grab;
+  }
+  .circ-zoom-wrap.dragging{ cursor:grabbing; }
+  #circSvg{ width:100%; height:auto; display:block; touch-action:none; transform-origin:0 0; }
+  .circ-zoom-hint{ color:#7a8d82; font-size:.78em; margin:8px 0 0; }
   .circ-arc{ cursor:pointer; stroke:#fff; stroke-width:1.5; }
   .circ-arc.male{ fill:#bcd9ef; }
   .circ-arc.female{ fill:#f6c9d3; }
@@ -253,8 +259,12 @@
     <div class="circular-view" id="circularView">
       <div class="circular-toolbar">
         <button type="button" id="circUpBtn">⬆ للأب</button>
+        <button type="button" id="circZoomResetBtn">↺ الحجم الأصلي</button>
       </div>
-      <svg id="circSvg" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="circ-zoom-wrap" id="circZoomWrap">
+        <svg id="circSvg" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <p class="circ-zoom-hint">🔍 قرّب بإصبعين على الجوال، أو بعجلة الفأرة على الكمبيوتر</p>
       <p class="circ-caption" id="circCaption"></p>
     </div>
 
@@ -371,6 +381,127 @@
   const circCaptionEl = document.getElementById('circCaption');
   const circUpBtn = document.getElementById('circUpBtn');
 
+  // ---- pinch / wheel zoom + drag pan for the circular chart only ----
+  const circZoomWrapEl = document.getElementById('circZoomWrap');
+  const circZoomResetBtn = document.getElementById('circZoomResetBtn');
+  let circZoomScale = 1, circZoomX = 0, circZoomY = 0;
+  const CIRC_ZOOM_MIN = 1, CIRC_ZOOM_MAX = 6;
+
+  function applyCircZoomTransform(){
+    circSvgEl.style.transform = `translate(${circZoomX}px, ${circZoomY}px) scale(${circZoomScale})`;
+  }
+  function clampCircPan(){
+    const rect = circZoomWrapEl.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    const contentW = w * circZoomScale, contentH = h * circZoomScale;
+    circZoomX = Math.min(0, Math.max(w - contentW, circZoomX));
+    circZoomY = Math.min(0, Math.max(h - contentH, circZoomY));
+  }
+  function circZoomAt(px, py, factor){
+    const newScale = Math.min(CIRC_ZOOM_MAX, Math.max(CIRC_ZOOM_MIN, circZoomScale * factor));
+    if(newScale === circZoomScale) return;
+    circZoomX = px - (px - circZoomX) * (newScale / circZoomScale);
+    circZoomY = py - (py - circZoomY) * (newScale / circZoomScale);
+    circZoomScale = newScale;
+    clampCircPan();
+    applyCircZoomTransform();
+  }
+  function resetCircZoom(){
+    circZoomScale = 1; circZoomX = 0; circZoomY = 0;
+    applyCircZoomTransform();
+  }
+
+  // mouse wheel (desktop): zoom in/out centered on the cursor
+  circZoomWrapEl.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = circZoomWrapEl.getBoundingClientRect();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    circZoomAt(px, py, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+  }, { passive: false });
+
+  // one finger/mouse = pan (once zoomed in); two fingers = pinch to zoom.
+  // Uses Pointer Events so the same code handles mouse and touch.
+  const circPointers = new Map();
+  let circPinchStartDist = 0;
+  let circLastPanPoint = null;
+  let circDragMoved = false;
+  let circSuppressClick = false;
+
+  function circPointerDistance(){
+    const pts = Array.from(circPointers.values());
+    return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  }
+  function circPointerMidpoint(){
+    const pts = Array.from(circPointers.values());
+    return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  }
+  // Pointer capture is only grabbed once a gesture is confirmed as a real
+  // drag/pinch (via setPointerCapture below), never on plain pointerdown.
+  // Capturing immediately would make Chromium retarget the matching pointerup
+  // (and the click synthesized from it) at this wrapper instead of the wedge
+  // actually under the finger/cursor, so a plain tap would stop drilling in.
+  circZoomWrapEl.addEventListener('pointerdown', (e) => {
+    circPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    circDragMoved = false;
+    if(circPointers.size === 2){
+      try{
+        for(const id of circPointers.keys()) circZoomWrapEl.setPointerCapture(id);
+      }catch(err){}
+      circPinchStartDist = circPointerDistance();
+    } else if(circPointers.size === 1){
+      circLastPanPoint = { x: e.clientX, y: e.clientY };
+    }
+  });
+  circZoomWrapEl.addEventListener('pointermove', (e) => {
+    if(!circPointers.has(e.pointerId)) return;
+    circPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if(circPointers.size === 2){
+      const dist = circPointerDistance();
+      const mid = circPointerMidpoint();
+      const rect = circZoomWrapEl.getBoundingClientRect();
+      if(circPinchStartDist > 0){
+        circZoomAt(mid.x - rect.left, mid.y - rect.top, dist / circPinchStartDist);
+      }
+      circPinchStartDist = dist;
+      circDragMoved = true;
+    } else if(circPointers.size === 1 && circZoomScale > 1 && circLastPanPoint){
+      const dx = e.clientX - circLastPanPoint.x;
+      const dy = e.clientY - circLastPanPoint.y;
+      if(Math.abs(dx) > 2 || Math.abs(dy) > 2){
+        if(!circDragMoved){
+          try{ circZoomWrapEl.setPointerCapture(e.pointerId); }catch(err){}
+        }
+        circDragMoved = true;
+        circZoomWrapEl.classList.add('dragging');
+      }
+      circZoomX += dx;
+      circZoomY += dy;
+      clampCircPan();
+      applyCircZoomTransform();
+      circLastPanPoint = { x: e.clientX, y: e.clientY };
+    }
+  });
+  function circPointerEnd(e){
+    circPointers.delete(e.pointerId);
+    circLastPanPoint = null;
+    circPinchStartDist = 0;
+    circZoomWrapEl.classList.remove('dragging');
+    try{ circZoomWrapEl.releasePointerCapture(e.pointerId); }catch(err){}
+    if(circDragMoved){
+      // a pan/pinch just ended — swallow the click it would otherwise fire,
+      // so lifting a finger off a wedge doesn't also drill into it
+      circSuppressClick = true;
+      setTimeout(() => { circSuppressClick = false; }, 50);
+    }
+    circDragMoved = false;
+  }
+  circZoomWrapEl.addEventListener('pointerup', circPointerEnd);
+  circZoomWrapEl.addEventListener('pointercancel', circPointerEnd);
+  circZoomWrapEl.addEventListener('click', (e) => {
+    if(circSuppressClick){ e.stopPropagation(); e.preventDefault(); }
+  }, true);
+  circZoomResetBtn.addEventListener('click', resetCircZoom);
+
   function polarPoint(cx, cy, r, angle){
     return { x: cx + r * Math.sin(angle), y: cy - r * Math.cos(angle) };
   }
@@ -388,6 +519,7 @@
   }
   function centerCircularOn(node){
     circCenterNode = node;
+    resetCircZoom();
     renderCircular();
   }
   function renderCircular(){
