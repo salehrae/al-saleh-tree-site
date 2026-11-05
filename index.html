@@ -254,6 +254,13 @@
   .circ-arc.highlight{ fill:#ffd43b; }
   .circ-arc:hover{ filter:brightness(0.95); }
   .circ-label{ font-family:'Tajawal','Cairo','Tahoma',sans-serif; font-weight:700; font-size:2.5px; fill:#1c2e24; pointer-events:none; }
+  /* daughters sharing one father share a single undivided wedge (see
+     addDaughterGroup) with their names stacked inside it. Since there's no
+     longer one wedge per daughter to click, each stacked name becomes its
+     own click target instead — "press any name to open her own tree" still
+     holds, it's just the label itself that's pressable here. */
+  .circ-label.group-label{ pointer-events:auto; cursor:pointer; }
+  .circ-label.group-label:hover{ text-decoration:underline; }
   .circ-center{ cursor:default; }
   .circ-center-circle{ fill:var(--male); stroke:#fff; stroke-width:3; }
   .circ-center-name{ font-family:'Cairo','Tahoma',sans-serif; font-weight:800; fill:#fff; font-size:17px; }
@@ -730,6 +737,15 @@
       return Math.sqrt(n._total);
     }
 
+    // Daughters sharing one father no longer get their own angular slice
+    // each (see addDaughterGroup below) — the whole cluster gets ONE
+    // combined weight here, same sqrt-compression philosophy as a single
+    // child's weight, just applied to the group's size instead of one
+    // person's family size.
+    function groupWeight(count){
+      return spanWeight({ _total: count });
+    }
+
     function visibleChildren(n){
       return hideFemales ? n._children.filter(c => c.gender !== 'female') : n._children;
     }
@@ -792,7 +808,7 @@
       }
       if(bbox.width > available && available < 8){
         text.remove();
-        return;
+        return null;
       }
       // Safety net only: the pre-check in addArc already screens out wedges
       // too thin for even one character, so this should rarely fire. It
@@ -803,9 +819,84 @@
       const tangentialSpace = (a1 - a0) * labelR;
       if(bbox.height > tangentialSpace * 2.2){
         text.remove();
-        return;
+        return null;
       }
       text.setAttribute('clip-path', `url(#${makeClip(r0, r1, a0, a1)})`);
+      return text;
+    }
+
+    // Several daughters of the same father, rendered the normal way, each
+    // get their own thin angular slice of his wedge — with enough sisters,
+    // that slice gets too narrow for even one character and the whole name
+    // is dropped (not just truncated, gone). Since every daughter in this
+    // data is a leaf (_total===1, nothing to draw further out for her
+    // anyway), there's no cost to NOT subdividing their father's arc among
+    // them individually: instead they all share one undivided wedge, and
+    // each of their names gets its own radial row stacked inside it. Every
+    // row gets the group's FULL angular width (never divided further) —
+    // only the radial slice of the row is divided among the sisters — which
+    // is a good trade here because the font-size/tangential-space check is
+    // what was actually dropping names outright, while shortening the
+    // radial room just costs a little extra ellipsis-truncation on long
+    // names, which is far better than no name at all.
+    function addDaughterGroup(daughters, r0, r1, a0, a1, ring){
+      femaleCount += daughters.length;
+      deepestRendered = Math.max(deepestRendered, ring);
+      const path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('d', arcPath(cx, cy, r0, r1, a0, a1));
+      const highlighted = daughters.indexOf(circHighlightNode) !== -1;
+      path.setAttribute('class', 'circ-arc female' + (highlighted ? ' highlight' : ''));
+      // With more than one daughter sharing the wedge there's no single
+      // person a click on the background itself should open — each
+      // stacked name below is its own click target instead. With exactly
+      // one daughter it behaves exactly like any other wedge.
+      if(daughters.length === 1){
+        path.addEventListener('click', () => centerCircularOn(daughters[0]));
+      }
+      circSvgEl.appendChild(path);
+
+      const midA = (a0 + a1) / 2;
+      const count = daughters.length;
+      const rowBand = (r1 - r0) / count;
+      const angWidth = a1 - a0;
+      daughters.forEach((d, i) => {
+        const rr0 = r0 + rowBand * i;
+        const rr1 = rr0 + rowBand;
+        const rowR = rr0 + rowBand * 0.5;
+        if(angWidth * rowR > 3){
+          const text = renderRadialLabel(d, rr0, rr1, a0, a1, midA, rowR);
+          if(text && count > 1){
+            text.classList.add('group-label');
+            text.addEventListener('click', () => centerCircularOn(d));
+          }
+        }
+      });
+    }
+
+    // Splits a set of siblings into sons (each still gets their own
+    // individually-sized wedge, exactly as before) and daughters (grouped
+    // into one shared wedge via addDaughterGroup, with a single combined
+    // weight standing in for all of them when dividing up the angular
+    // total). Used for both the root-level ring and every deeper ring, so
+    // the grouping behaves identically no matter how far out it happens.
+    function renderChildren(kids, r0, r1, a0, a1, ring){
+      const sons = kids.filter(c => c.gender !== 'female');
+      const daughters = kids.filter(c => c.gender === 'female');
+      const sonWeights = sons.map(c => spanWeight(c));
+      const dWeight = daughters.length ? groupWeight(daughters.length) : 0;
+      const total = sonWeights.reduce((s, w) => s + w, 0) + dWeight || 1;
+      const fullSpan = a1 - a0;
+      let a = a0;
+      sons.forEach((c, idx) => {
+        const span = fullSpan * (sonWeights[idx] / total);
+        addArc(c, r0, r1, a, a + span, ring, idx);
+        a += span;
+      });
+      if(daughters.length){
+        const span = fullSpan * (dWeight / total);
+        addDaughterGroup(daughters, r0, r1, a, a + span, ring);
+        a += span;
+      }
     }
 
     function addArc(n, r0, r1, a0, a1, ring, siblingIdx){
@@ -844,25 +935,13 @@
 
       const kids = visibleChildren(n);
       if(ring < depth && kids.length){
-        const total = kids.reduce((s,c) => s + spanWeight(c), 0) || 1;
-        let a = a0;
-        kids.forEach((c, idx) => {
-          const span = (a1 - a0) * (spanWeight(c) / total);
-          addArc(c, r1, r1 + ringThickness, a, a + span, ring + 1, idx);
-          a += span;
-        });
+        renderChildren(kids, r1, r1 + ringThickness, a0, a1, ring + 1);
       }
     }
 
     const rootKids = visibleChildren(node);
     if(rootKids.length){
-      const total = rootKids.reduce((s,c) => s + spanWeight(c), 0) || 1;
-      let a = 0;
-      rootKids.forEach((c, idx) => {
-        const span = 2 * Math.PI * (spanWeight(c) / total);
-        addArc(c, centerR, centerR + ringThickness, a, a + span, 1, idx);
-        a += span;
-      });
+      renderChildren(rootKids, centerR, centerR + ringThickness, 0, 2 * Math.PI, 1);
     }
 
     const g = document.createElementNS(svgNS, 'g');
