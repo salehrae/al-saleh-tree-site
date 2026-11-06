@@ -28,6 +28,18 @@
     --female:#c0392b;
   }
   *{box-sizing:border-box;}
+  /* On a phone, deeply-nested rows (توسيع الكل can open branches 13
+     generations deep) or a long search-result path can end up a bit wider
+     than the screen. Without this, that extra width made the WHOLE page
+     scrollable sideways — any touch-scroll could drag the screen left/right
+     instead of just up/down. Clipping it here keeps the page itself pinned
+     to the screen width; the individual overflowing element just gets cut
+     off at the edge instead of dragging the whole layout with it. */
+  /* only on <html>, not <body> too -- setting overflow-x on both at once
+     turns <body> into its own scroll container instead of the normal
+     viewport-level scroll, which silently breaks position:sticky (used
+     below to pin the sidebar's control buttons while scrolling). */
+  html{ overflow-x:hidden; max-width:100%; }
   body{
     margin:0; padding:0;
     font-family:'Cairo','Tahoma',sans-serif;
@@ -115,6 +127,20 @@
   @media (max-width: 768px){
     .tree-viewport{ flex-direction:column; }
     .tree-sidebar{ width:100%; flex:0 0 auto; position:static; }
+    /* رجوع / توسيع الكل / طي الكل / إخفاء الإناث pinned to a fixed spot on
+       the screen on a phone once البحث والخيارات is opened, so they stay
+       reachable while scrolling through a long, expanded tree instead of
+       scrolling away with the rest of the panel. This has to be `fixed`,
+       not `sticky` — on a phone .tree-content (the whole, possibly huge,
+       tree) comes before .tree-sidebar in the stacked mobile layout, so a
+       merely-sticky toolbar would sit below all of it and never get a
+       chance to stick near the top; `fixed` pins it to the screen itself,
+       independent of where it falls in the page. */
+    html[data-theme="modern"] .controls{
+      position:fixed; top:8px; left:12px; right:12px; z-index:40;
+      background:#fff; padding:8px; margin:0;
+      border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.18);
+    }
   }
 
   .node{ }
