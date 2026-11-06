@@ -475,20 +475,23 @@
   });
   const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
   const treeSidebarEl = document.getElementById('treeSidebar');
-  const treeContentEl = document.getElementById('treeContent');
+  const wrapEl = document.querySelector('.wrap');
   // On a phone the control buttons (رجوع/توسيع الكل/طي الكل/إخفاء الإناث)
   // are pinned to a fixed spot on the screen once البحث والخيارات is
-  // opened (see the .controls CSS), which otherwise floats right over the
-  // top of the tree — hiding the hint banner and first row underneath it.
-  // Reserve exactly that much space at the top of the tree content instead
-  // of guessing a fixed number of pixels, so it stays correct even if the
-  // buttons wrap onto a different number of rows at some screen width.
+  // opened (see the .controls CSS), which otherwise floats right over
+  // whatever is currently at the top of the page underneath it — first just
+  // the tree's hint banner, but the شجرة الصالح/أقربائي page-switcher pills
+  // sit even higher up, so pushing only the tree content down wasn't
+  // enough; it still covered the switcher. Pushing the whole page (.wrap)
+  // down by the fixed bar's actual height covers every case at once,
+  // whatever happens to be scrolled to the top. Margin, not padding, so it
+  // adds to .wrap's own padding instead of overriding it.
   function syncMobileControlsSpacing(){
-    if(!treeContentEl) return;
+    if(!wrapEl) return;
     const controlsEl = document.querySelector('.controls');
     const isFixed = controlsEl && getComputedStyle(controlsEl).position === 'fixed'
       && controlsEl.getClientRects().length > 0; // only when actually visible (sidebar open)
-    treeContentEl.style.paddingTop = isFixed ? (controlsEl.getBoundingClientRect().height + 16) + 'px' : '';
+    wrapEl.style.marginTop = isFixed ? (controlsEl.getBoundingClientRect().height + 16) + 'px' : '';
   }
   if(sidebarToggleBtn && treeSidebarEl){
     sidebarToggleBtn.addEventListener('click', () => {
