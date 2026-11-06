@@ -44,10 +44,17 @@
     box-shadow:0 2px 6px rgba(0,0,0,.2);
   }
   .controls button:hover{ background:var(--gold-dark); }
+  .controls button:disabled{ opacity:.4; cursor:default; }
+  .controls button:disabled:hover{ background:var(--gold); }
+  /* matches the other green pill buttons in this toolbar (white bold text) —
+     it used to be a plain white/outlined checkbox that stood out from its
+     green siblings */
   .hide-female-toggle{
-    display:flex; align-items:center; justify-content:center; gap:6px; background:#f7fbf8;
-    border:1.5px solid #ddd; border-radius:8px; padding:8px 10px; font-size:.85em; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px; background:var(--gold);
+    border:none; border-radius:8px; padding:8px 10px; font-size:.85em; font-weight:700;
+    color:#fff; cursor:pointer;
   }
+  .hide-female-toggle input{ accent-color:#fff; }
 
   .tree-viewport{
     background:#fbfdfc;
@@ -268,8 +275,12 @@
   .circ-caption{ color:#3f5c4c; font-size:.88em; margin:10px 0 16px; font-weight:600; }
 
   /* ================= "Arabic names only" warning toast ================= */
+  /* Pinned near the TOP of the screen, not the bottom — on a phone, typing
+     into any of these fields brings up the on-screen keyboard, which covers
+     roughly the bottom half of the viewport and was hiding a bottom-pinned
+     toast completely. The top is always clear of the keyboard. */
   .arabic-toast{
-    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(16px);
+    position:fixed; top:16px; bottom:auto; left:50%; transform:translateX(-50%) translateY(-16px);
     background:#1c2e24; color:#fff; font-weight:700; font-size:.92em;
     padding:12px 22px; border-radius:999px; box-shadow:0 8px 22px rgba(0,0,0,.35);
     opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:999; max-width:90vw; text-align:center;
@@ -349,6 +360,7 @@
       <button type="button" class="sidebar-toggle-btn" id="sidebarToggleBtn">🔍 البحث والخيارات</button>
       <div class="sidebar-body" id="sidebarBody">
         <div class="controls">
+          <button id="listBackBtn" disabled>⬅ رجوع</button>
           <button id="expandAllBtn">↧ توسيع الكل</button>
           <button id="collapseAllBtn">↥ طي الكل</button>
           <label class="hide-female-toggle"><input type="checkbox" id="hideFemaleChk"> إخفاء الإناث</label>
@@ -454,6 +466,14 @@
   const CIRC_MAX_OUTER = 308; // outer edge radius the rings must fit inside, in viewBox units
   const CIRC_LABEL_FONT_SIZE = 2.5; // kept in sync with the .circ-label font-size in <style>
   let hideFemales = false;
+  // شجرة الصالح (list) page's own رجوع — mirrors the أقربائي page's history
+  // stack, but undoes a search-result "reveal" (which force-opens whatever
+  // collapsed ancestors stand between the root and the found person, then
+  // scrolls to them) instead of a wedge click. Each entry remembers only the
+  // ancestors that reveal actually had to open (so رجوع re-collapses exactly
+  // those, leaving anything the user had already opened by hand alone) plus
+  // the scroll position from right before the jump.
+  let listHistory = [];
   // The chart measures label widths with getBBox() to decide how much of
   // each name fits in its wedge, but a web font's glyphs are noticeably
   // different from the Tahoma fallback the browser uses while it's still
@@ -1106,13 +1126,22 @@
       if(n._childWrap) n._childWrap.classList.remove('collapsed');
       if(n._row){ const t = n._row.querySelector('.toggle'); if(t) t.classList.add('open'); }
     });
+    listHistory = [];
+    updateListBackBtn();
   };
+  // طي الكل no longer collapses all the way down to just the root — it
+  // snaps back to the same default view the page opens with (5 generations
+  // visible: DEFAULT_OPEN_DEPTH levels open, everything past that collapsed),
+  // so pressing it always returns to one known, useful orientation instead
+  // of an empty-looking single root row.
   document.getElementById('collapseAllBtn').onclick = () => {
     allNodes.forEach(n => {
-      if(n === data) return;
-      if(n._childWrap) n._childWrap.classList.add('collapsed');
-      if(n._row){ const t = n._row.querySelector('.toggle'); if(t) t.classList.remove('open'); }
+      const shouldBeOpen = n._depth < DEFAULT_OPEN_DEPTH;
+      if(n._childWrap) n._childWrap.classList.toggle('collapsed', !shouldBeOpen);
+      if(n._row){ const t = n._row.querySelector('.toggle'); if(t) t.classList.toggle('open', shouldBeOpen); }
     });
+    listHistory = [];
+    updateListBackBtn();
   };
   document.getElementById('hideFemaleChk').addEventListener('change', (e) => {
     document.body.classList.toggle('hide-female', e.target.checked);
@@ -1290,20 +1319,48 @@
   document.getElementById('searchGrandfather').addEventListener('input', refreshGgfOptions);
   document.getElementById('searchGGFather').addEventListener('input', refreshBranchOptions);
 
+  function updateListBackBtn(){
+    const btn = document.getElementById('listBackBtn');
+    if(btn) btn.disabled = listHistory.length === 0;
+  }
+
   function revealNode(n){
+    const scrollY = window.scrollY;
+    const openedAncestors = [];
     let cur = n._parent;
     while(cur){
       if(cur._childWrap){
+        // only remember ancestors that were ACTUALLY collapsed before this —
+        // رجوع should re-collapse exactly what reveal opened, not touch
+        // anything the user had already expanded themselves
+        if(cur._childWrap.classList.contains('collapsed')){
+          openedAncestors.push(cur);
+        }
         cur._childWrap.classList.remove('collapsed');
         const t = cur._row && cur._row.querySelector('.toggle');
         if(t) t.classList.add('open');
       }
       cur = cur._parent;
     }
+    listHistory.push({ scrollY, openedAncestors });
+    updateListBackBtn();
     n._row.scrollIntoView({ behavior: 'smooth', block: 'center' });
     n._row.classList.add('highlight-flash');
     setTimeout(() => n._row.classList.remove('highlight-flash'), 1800);
   }
+
+  function listGoBack(){
+    if(!listHistory.length) return;
+    const entry = listHistory.pop();
+    entry.openedAncestors.forEach(cur => {
+      if(cur._childWrap) cur._childWrap.classList.add('collapsed');
+      const t = cur._row && cur._row.querySelector('.toggle');
+      if(t) t.classList.remove('open');
+    });
+    window.scrollTo({ top: entry.scrollY, behavior: 'smooth' });
+    updateListBackBtn();
+  }
+  document.getElementById('listBackBtn').addEventListener('click', listGoBack);
 
   const resultsBox = document.getElementById('searchResults');
   function runSearch(){
