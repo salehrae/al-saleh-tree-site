@@ -37,9 +37,15 @@
      off at the edge instead of dragging the whole layout with it. */
   /* only on <html>, not <body> too -- setting overflow-x on both at once
      turns <body> into its own scroll container instead of the normal
-     viewport-level scroll, which silently breaks position:sticky (used
-     below to pin the sidebar's control buttons while scrolling). */
+     viewport-level scroll. */
   html{ overflow-x:hidden; max-width:100%; }
+  /* overflow-x:hidden alone stops the page from being scrolled sideways,
+     but on an actual phone there's a second, separate cause of "the screen
+     moves a little left/right": the browser's own rubber-band/bounce
+     gesture at the edges. overscroll-behavior turns that off on the X axis
+     specifically (vertical bounce is left alone — only sideways movement
+     was reported as a problem). */
+  html, body{ overscroll-behavior-x:none; }
   body{
     margin:0; padding:0;
     font-family:'Cairo','Tahoma',sans-serif;
@@ -469,11 +475,29 @@
   });
   const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
   const treeSidebarEl = document.getElementById('treeSidebar');
+  const treeContentEl = document.getElementById('treeContent');
+  // On a phone the control buttons (رجوع/توسيع الكل/طي الكل/إخفاء الإناث)
+  // are pinned to a fixed spot on the screen once البحث والخيارات is
+  // opened (see the .controls CSS), which otherwise floats right over the
+  // top of the tree — hiding the hint banner and first row underneath it.
+  // Reserve exactly that much space at the top of the tree content instead
+  // of guessing a fixed number of pixels, so it stays correct even if the
+  // buttons wrap onto a different number of rows at some screen width.
+  function syncMobileControlsSpacing(){
+    if(!treeContentEl) return;
+    const controlsEl = document.querySelector('.controls');
+    const isFixed = controlsEl && getComputedStyle(controlsEl).position === 'fixed'
+      && controlsEl.getClientRects().length > 0; // only when actually visible (sidebar open)
+    treeContentEl.style.paddingTop = isFixed ? (controlsEl.getBoundingClientRect().height + 16) + 'px' : '';
+  }
   if(sidebarToggleBtn && treeSidebarEl){
     sidebarToggleBtn.addEventListener('click', () => {
       treeSidebarEl.classList.toggle('collapsed');
+      syncMobileControlsSpacing();
     });
   }
+  window.addEventListener('resize', syncMobileControlsSpacing);
+  window.addEventListener('orientationchange', syncMobileControlsSpacing);
 
   let data; // set once data/tree.json loads
 
