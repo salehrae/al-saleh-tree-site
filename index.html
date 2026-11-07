@@ -81,15 +81,14 @@
     display:flex; align-items:flex-start; gap:14px;
   }
   .tree-content{ flex:1 1 auto; min-width:0; }
-  .tree-sidebar{
-    flex:0 0 200px; width:200px;
-    display:flex; flex-direction:column; gap:12px;
-    position:sticky; top:14px;
-    background:#f2f9f4; border:1.5px solid #ddd; border-radius:14px;
-    padding:12px;
-  }
 
   .search-panel-wrap{ position:relative; }
+  /* the شجرة الصالح page's own 5-field search panel is shown/hidden by the
+     🔍 بحث toggle button -- scoped to this one id so the أقربائي page's own
+     (always-shown) search panel, which shares the .search-panel-wrap class,
+     is never affected */
+  #listSearchPanelWrap.collapsed{ display:none; }
+  #listSearchPanelWrap{ margin-top:10px; }
   .search-panel{
     display:flex; flex-direction:column; align-items:stretch; gap:8px;
   }
@@ -113,12 +112,6 @@
   }
   .search-field input::placeholder{ color:#9dbfa9; }
   .search-field input:focus{ outline:none; border-color:var(--male); }
-  #searchBtn{
-    display:flex; align-items:center; justify-content:center; gap:8px; font-family:inherit; font-weight:800;
-    font-size:.92em; cursor:pointer; background:var(--male); color:#fff; border:none;
-    padding:9px 14px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,.18);
-  }
-  #searchBtn:hover{ background:#2f7a54; }
   #searchResults, #relResults{
     margin-top:8px; background:#fff;
     border:2px solid var(--gold); border-radius:10px; max-height:280px;
@@ -132,13 +125,12 @@
 
   @media (max-width: 768px){
     .tree-viewport{ flex-direction:column; }
-    .tree-sidebar{ width:100%; flex:0 0 auto; position:static; }
-    /* رجوع / توسيع الكل / طي الكل / إخفاء الإناث pinned to a fixed spot on
-       the screen on a phone once البحث والخيارات is opened, so they stay
-       reachable while scrolling through a long, expanded tree instead of
-       scrolling away with the rest of the panel. This has to be `fixed`,
+    /* توسيع الكل / طي الكل / إخفاء الإناث / بحث / رجوع are always visible
+       now (no more toggle button to reveal them), and stay pinned to a
+       fixed spot on the screen on a phone so they stay reachable while
+       scrolling through a long, expanded tree. This has to be `fixed`,
        not `sticky` — on a phone .tree-content (the whole, possibly huge,
-       tree) comes before .tree-sidebar in the stacked mobile layout, so a
+       tree) comes before anything else in the stacked mobile layout, so a
        merely-sticky toolbar would sit below all of it and never get a
        chance to stick near the top; `fixed` pins it to the screen itself,
        independent of where it falls in the page. */
@@ -175,6 +167,13 @@
 
   .highlight-flash{ animation: flash 1.8s ease; }
   @keyframes flash{ 0%{ background:#fff3b0; } 100%{ background:transparent; } }
+  /* persistent yellow shadow over the exact member found by the شجرة الصالح
+     5-field search -- unlike .highlight-flash (a brief arrival pop that
+     fades), this stays until the next search is opened */
+  .search-match{
+    box-shadow:0 0 0 3px #ffd43b, 0 0 14px 4px rgba(255,212,59,.65);
+    border-radius:10px;
+  }
 
   .load-note{ text-align:center; padding:60px 20px; color:#3f5c4c; font-size:1em; line-height:1.8; }
 
@@ -198,27 +197,10 @@
   }
 
   /* ================= modern theme (mobile-friendly) ================= */
-  .sidebar-toggle-btn{ display:none; }
-  html[data-theme="modern"] .sidebar-toggle-btn{
-    display:flex; align-items:center; justify-content:center; gap:6px;
-    width:100%; font-family:inherit; font-weight:700; font-size:.92em; cursor:pointer;
-    background:var(--male); color:#fff; border:none; padding:12px; border-radius:12px;
-    min-height:44px;
-  }
-  html[data-theme="modern"] .tree-sidebar.collapsed .sidebar-body{ display:none; }
-  html[data-theme="modern"] .sidebar-body{ margin-top:10px; }
-  /* the أقربائي page has its own dedicated search form + toolbar, so the
-     general sidebar (built for browsing/searching the full list tree) isn't
-     shown there at all */
-  html[data-theme="circular"] .tree-sidebar{ display:none; }
-
   html[data-theme="modern"] body{ background:#f3f6f4; }
   html[data-theme="modern"] .tree-viewport{
     background:#fff; border:1px solid #e3e9e6; border-radius:16px;
     box-shadow:0 1px 3px rgba(0,0,0,.05);
-  }
-  html[data-theme="modern"] .tree-sidebar{
-    background:#fff; border:1px solid #e3e9e6; border-radius:14px;
   }
   html[data-theme="modern"] .controls{ flex-direction:row; flex-wrap:wrap; }
   html[data-theme="modern"] .controls button{ flex:1 1 auto; min-height:42px; }
@@ -330,6 +312,45 @@
 
   <div class="tree-viewport">
     <div class="tree-content" id="treeContent">
+      <div class="controls">
+        <button id="expandAllBtn">↧ توسيع الكل</button>
+        <button id="collapseAllBtn">↥ طي الكل</button>
+        <label class="hide-female-toggle"><input type="checkbox" id="hideFemaleChk"> إخفاء الإناث</label>
+        <button id="listSearchToggleBtn">🔍 بحث</button>
+        <button id="listBackBtn" disabled>⬅ رجوع</button>
+      </div>
+
+      <div class="search-panel-wrap collapsed" id="listSearchPanelWrap">
+        <div class="search-panel">
+          <div class="search-field">
+            <label>الاسم</label>
+            <input id="searchName" type="text" placeholder="مطلوب" autocomplete="off">
+            <div class="suggest-box" id="nameSuggestBox"></div>
+          </div>
+          <div class="search-field">
+            <label>اسم الأب</label>
+            <input id="searchFather" type="text" placeholder="مطلوب" autocomplete="off">
+            <div class="suggest-box" id="fatherSuggestBox"></div>
+          </div>
+          <div class="search-field">
+            <label>اسم الجد</label>
+            <input id="searchGrandfather" type="text" placeholder="مطلوب" autocomplete="off">
+            <div class="suggest-box" id="grandfatherSuggestBox"></div>
+          </div>
+          <div class="search-field">
+            <label>اسم الجد الأكبر</label>
+            <input id="searchGGFather" type="text" placeholder="مطلوب" autocomplete="off">
+            <div class="suggest-box" id="ggfatherSuggestBox"></div>
+          </div>
+          <div class="search-field">
+            <label>الفرع الرئيسي</label>
+            <input id="searchBranch" type="text" placeholder="مطلوب" autocomplete="off">
+            <div class="suggest-box" id="branchSuggestBox"></div>
+          </div>
+          <div id="searchResults"></div>
+        </div>
+      </div>
+
       <p class="list-hint">👆 اضغط على الاسم لفتح أو طي الفرع</p>
       <div id="treeViewport">
         <p class="load-note" id="loadNote">جارٍ تحميل الشجرة…</p>
@@ -387,50 +408,6 @@
         <p class="circ-caption" id="circCaption"></p>
       </div>
     </div>
-
-    <aside class="tree-sidebar collapsed" id="treeSidebar">
-      <button type="button" class="sidebar-toggle-btn" id="sidebarToggleBtn">🔍 البحث والخيارات</button>
-      <div class="sidebar-body" id="sidebarBody">
-        <div class="controls">
-          <button id="listBackBtn" disabled>⬅ رجوع</button>
-          <button id="expandAllBtn">↧ توسيع الكل</button>
-          <button id="collapseAllBtn">↥ طي الكل</button>
-          <label class="hide-female-toggle"><input type="checkbox" id="hideFemaleChk"> إخفاء الإناث</label>
-        </div>
-
-        <div class="search-panel-wrap">
-          <div class="search-panel">
-            <div class="search-field">
-              <label>الاسم</label>
-              <input id="searchName" type="text" placeholder="اسم الفرد" autocomplete="off">
-              <div class="suggest-box" id="nameSuggestBox"></div>
-            </div>
-            <div class="search-field">
-              <label>اسم الأب</label>
-              <input id="searchFather" type="text" placeholder="مطلوب" autocomplete="off">
-              <div class="suggest-box" id="fatherSuggestBox"></div>
-            </div>
-            <div class="search-field">
-              <label>اسم الجد</label>
-              <input id="searchGrandfather" type="text" placeholder="مطلوب" autocomplete="off">
-              <div class="suggest-box" id="grandfatherSuggestBox"></div>
-            </div>
-            <div class="search-field">
-              <label>اسم الجد الأكبر</label>
-              <input id="searchGGFather" type="text" placeholder="مطلوب" autocomplete="off">
-              <div class="suggest-box" id="ggfatherSuggestBox"></div>
-            </div>
-            <div class="search-field">
-              <label>الفرع الرئيسي</label>
-              <input id="searchBranch" type="text" placeholder="مطلوب" autocomplete="off">
-              <div class="suggest-box" id="branchSuggestBox"></div>
-            </div>
-            <button id="searchBtn" type="button"><span class="ic">🔍</span> بحث</button>
-            <div id="searchResults"></div>
-          </div>
-        </div>
-      </div>
-    </aside>
   </div>
 
   <div class="arabic-toast" id="arabicOnlyToast">الأسماء يجب أن تكتب باللغة العربية</div>
@@ -473,34 +450,31 @@
       }
     });
   });
-  const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
-  const treeSidebarEl = document.getElementById('treeSidebar');
   const wrapEl = document.querySelector('.wrap');
-  // On a phone the control buttons (رجوع/توسيع الكل/طي الكل/إخفاء الإناث)
-  // are pinned to a fixed spot on the screen once البحث والخيارات is
-  // opened (see the .controls CSS), which otherwise floats right over
-  // whatever is currently at the top of the page underneath it — first just
-  // the tree's hint banner, but the شجرة الصالح/أقربائي page-switcher pills
-  // sit even higher up, so pushing only the tree content down wasn't
-  // enough; it still covered the switcher. Pushing the whole page (.wrap)
-  // down by the fixed bar's actual height covers every case at once,
-  // whatever happens to be scrolled to the top. Margin, not padding, so it
-  // adds to .wrap's own padding instead of overriding it.
+  // On a phone the control buttons (توسيع الكل/طي الكل/إخفاء الإناث/بحث/رجوع)
+  // are always visible and pinned to a fixed spot on the screen (see the
+  // .controls CSS), which otherwise floats right over whatever is currently
+  // at the top of the page underneath it — first just the tree's hint
+  // banner, but the شجرة الصالح/أقربائي page-switcher pills sit even higher
+  // up, so pushing only the tree content down wasn't enough; it still
+  // covered the switcher. Pushing the whole page (.wrap) down by the fixed
+  // bar's actual height covers every case at once, whatever happens to be
+  // scrolled to the top. Margin, not padding, so it adds to .wrap's own
+  // padding instead of overriding it.
   function syncMobileControlsSpacing(){
     if(!wrapEl) return;
     const controlsEl = document.querySelector('.controls');
     const isFixed = controlsEl && getComputedStyle(controlsEl).position === 'fixed'
-      && controlsEl.getClientRects().length > 0; // only when actually visible (sidebar open)
+      && controlsEl.getClientRects().length > 0; // only when actually visible (شجرة الصالح page, not أقربائي)
     wrapEl.style.marginTop = isFixed ? (controlsEl.getBoundingClientRect().height + 16) + 'px' : '';
-  }
-  if(sidebarToggleBtn && treeSidebarEl){
-    sidebarToggleBtn.addEventListener('click', () => {
-      treeSidebarEl.classList.toggle('collapsed');
-      syncMobileControlsSpacing();
-    });
   }
   window.addEventListener('resize', syncMobileControlsSpacing);
   window.addEventListener('orientationchange', syncMobileControlsSpacing);
+  // re-check whenever the page switcher is pressed too, since switching to
+  // أقربائي hides #treeContent (and .controls along with it)
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => setTimeout(syncMobileControlsSpacing, 0));
+  });
 
   let data; // set once data/tree.json loads
 
@@ -527,6 +501,10 @@
   // those, leaving anything the user had already opened by hand alone) plus
   // the scroll position from right before the jump.
   let listHistory = [];
+  // the row currently wearing the persistent yellow search-match shadow (see
+  // .search-match), so it can be cleared when a new بحث search starts or
+  // when رجوع undoes the reveal that set it
+  let searchMatchRow = null;
   // The chart measures label widths with getBBox() to decide how much of
   // each name fits in its wedge, but a web font's glyphs are noticeably
   // different from the Tahoma fallback the browser uses while it's still
@@ -1377,6 +1355,10 @@
     if(btn) btn.disabled = listHistory.length === 0;
   }
 
+  function clearSearchMatch(){
+    if(searchMatchRow){ searchMatchRow.classList.remove('search-match'); searchMatchRow = null; }
+  }
+
   function revealNode(n){
     const scrollY = window.scrollY;
     const openedAncestors = [];
@@ -1395,11 +1377,17 @@
       }
       cur = cur._parent;
     }
-    listHistory.push({ scrollY, openedAncestors });
+    listHistory.push({ scrollY, openedAncestors, matchedRow: n._row });
     updateListBackBtn();
     n._row.scrollIntoView({ behavior: 'smooth', block: 'center' });
     n._row.classList.add('highlight-flash');
     setTimeout(() => n._row.classList.remove('highlight-flash'), 1800);
+    // persistent yellow shadow over the chosen member -- unlike the brief
+    // flash above, this stays until a new بحث search starts or رجوع undoes
+    // this exact reveal
+    clearSearchMatch();
+    n._row.classList.add('search-match');
+    searchMatchRow = n._row;
   }
 
   function listGoBack(){
@@ -1411,47 +1399,83 @@
       if(t) t.classList.remove('open');
     });
     window.scrollTo({ top: entry.scrollY, behavior: 'smooth' });
+    // every reveal in this history came from a بحث search, so undoing one
+    // also clears the yellow shadow it set (but only if it's still the same
+    // row -- a later search may have already replaced it)
+    if(entry.matchedRow === searchMatchRow) clearSearchMatch();
     updateListBackBtn();
   }
   document.getElementById('listBackBtn').addEventListener('click', listGoBack);
 
-  const resultsBox = document.getElementById('searchResults');
-  function runSearch(){
-    const fields = currentFields();
-    if(!fields.name || !fields.father || !fields.grandfather || !fields.ggf || !fields.branch){
-      resultsBox.innerHTML = '<div class="error">الأسماء الخمسة جميعها مطلوبة — الاسم، الأب، الجد، الجد الأكبر، والفرع الرئيسي</div>';
-      resultsBox.style.display = 'block';
-      return;
+  // ---- شجرة الصالح page's بحث toggle: opens/closes the 5-field panel in
+  // place (the user never leaves the list page). Finishing the 5th field
+  // (الفرع الرئيسي) with a match that EXACTLY identifies one person auto-
+  // closes the panel and jumps straight to them with the persistent yellow
+  // shadow above -- no separate submit button needed. ----
+  const listSearchPanelWrap = document.getElementById('listSearchPanelWrap');
+  const listSearchToggleBtn = document.getElementById('listSearchToggleBtn');
+  const searchResultsBox = document.getElementById('searchResults');
+  const LIST_SEARCH_FIELD_IDS = ['searchName','searchFather','searchGrandfather','searchGGFather','searchBranch'];
+
+  function resetListSearchPanel(){
+    LIST_SEARCH_FIELD_IDS.forEach(id => { document.getElementById(id).value = ''; });
+    listSearchPanelWrap.querySelectorAll('.suggest-box.open').forEach(b => b.classList.remove('open'));
+    searchResultsBox.innerHTML = '';
+    searchResultsBox.style.display = 'none';
+  }
+
+  listSearchToggleBtn.addEventListener('click', () => {
+    const isClosed = listSearchPanelWrap.classList.contains('collapsed');
+    if(isClosed){
+      resetListSearchPanel();
+      listSearchPanelWrap.classList.remove('collapsed');
+      document.getElementById('searchName').focus();
+    }else{
+      listSearchPanelWrap.classList.add('collapsed');
     }
-    const matches = search(fields);
-    if(!matches.length){
-      resultsBox.innerHTML = '<div class="error">لا نتائج — تأكد من الأسماء الخمسة</div>';
-      resultsBox.style.display = 'block';
-      return;
-    }
-    resultsBox.innerHTML = matches.map((n,i) => {
-      const path = ancestorChain(n).join(' ← ');
-      return `<div data-i="${i}">${n.name}<div class="path">${path}</div></div>`;
-    }).join('');
-    resultsBox.style.display = 'block';
-    resultsBox.querySelectorAll('div[data-i]').forEach(elm => {
-      elm.addEventListener('click', () => {
-        const idx = +elm.getAttribute('data-i');
-        revealNode(matches[idx]);
-        resultsBox.style.display = 'none';
-      });
+  });
+
+  // deliberately stricter than search()'s fuzzy/partial matching used
+  // elsewhere on this page -- this only fires once the user has actually
+  // finished typing each of the 5 full, correct names. A partial prefix
+  // (e.g. "صا" of "صالح") would otherwise "match" early via startsWith and
+  // jump the tree before they're done typing.
+  function exactListMatches(fields){
+    const { name, father, grandfather, ggf, branch } = fields;
+    if(!name || !father || !grandfather || !ggf || !branch) return [];
+    return allNodes.filter(n => {
+      const chain = normalizedChain(n);
+      if(chain[0] !== name) return false;
+      if(chain[1] !== father) return false;
+      if(chain[2] !== grandfather) return false;
+      if(chain[3] !== ggf) return false;
+      const bn = n._branchName ? normalizeArabic(n._branchName) : '';
+      return bn === branch;
     });
   }
-  document.getElementById('searchBtn').addEventListener('click', runSearch);
-  [
-    document.getElementById('searchName'),
-    document.getElementById('searchFather'),
-    document.getElementById('searchGrandfather'),
-    document.getElementById('searchGGFather'),
-    document.getElementById('searchBranch')
-  ].forEach(inp => inp.addEventListener('keydown', e => { if(e.key === 'Enter') runSearch(); }));
-  document.addEventListener('click', (e) => {
-    if(!e.target.closest('.search-panel-wrap')) resultsBox.style.display = 'none';
+
+  function maybeAutoResolveListSearch(){
+    const fields = currentFields();
+    const allFilled = fields.name && fields.father && fields.grandfather && fields.ggf && fields.branch;
+    if(!allFilled){
+      searchResultsBox.style.display = 'none';
+      return;
+    }
+    const matches = exactListMatches(fields);
+    if(!matches.length){
+      searchResultsBox.innerHTML = '<div class="error">لا يوجد فرد بهذه الأسماء الخمسة — تحقق من التدقيق</div>';
+      searchResultsBox.style.display = 'block';
+      return;
+    }
+    // exactly one in the normal case; in the rare event of a duplicate
+    // 5-name chain, pick the first (sorted, deterministic) match rather
+    // than leaving the user stuck with no way to submit
+    listSearchPanelWrap.classList.add('collapsed');
+    searchResultsBox.style.display = 'none';
+    revealNode(matches[0]);
+  }
+  LIST_SEARCH_FIELD_IDS.forEach(id => {
+    document.getElementById(id).addEventListener('input', maybeAutoResolveListSearch);
   });
 
   // ---- أقربائي page: a separate 5-mandatory-field search that resolves a
@@ -1551,6 +1575,11 @@
   document.addEventListener('click', (e) => {
     if(!e.target.closest('.relatives-search-panel .search-panel-wrap')) relResultsBox.style.display = 'none';
   });
+
+  // .controls is always visible now (no more toggle button to reveal it),
+  // so the mobile fixed-bar spacing has to be set up right away too, not
+  // just on resize/theme-switch
+  syncMobileControlsSpacing();
   } // end boot()
 
   // ---- bootstrap: load the base tree plus any admin-saved additions and
