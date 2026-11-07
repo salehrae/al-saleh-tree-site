@@ -31,11 +31,29 @@
   :root{
     --gold:#2f8f5e;
     --gold-dark:#1f6b45;
-    --maroon:#163625;
+    --gold-light:#eaf6f0;
+    --gold-50:#f5faf7;
+    --gold-gradient:linear-gradient(135deg, #37a173, var(--gold-dark));
+    --maroon:#16241c;
     --male:#3f8f68;
     --female:#c0392b;
+    --line:#e3e9e6;
+    --ink-soft:#3f5c4c;
+    --shadow-sm:0 1px 3px rgba(17,45,32,.10);
+    --shadow-md:0 4px 14px rgba(17,45,32,.14);
+    --shadow-lg:0 10px 28px rgba(17,45,32,.16);
+    --radius-sm:8px;
+    --radius-md:12px;
+    --radius-lg:18px;
   }
   *{box-sizing:border-box;}
+  /* ---- shared inline icon sprite (search/expand/collapse/etc. -- see the
+     hidden <svg><symbol> sprite near the top of <body>) ---- */
+  .btn-ic{
+    width:16px; height:16px; flex:0 0 auto;
+    stroke:currentColor; stroke-width:2.1; fill:none;
+    stroke-linecap:round; stroke-linejoin:round;
+  }
   /* On a phone, deeply-nested rows (توسيع الكل can open branches 13
      generations deep) or a long search-result path can end up a bit wider
      than the screen. Without this, that extra width made the WHOLE page
@@ -64,29 +82,35 @@
 
   .controls{ display:flex; flex-direction:column; gap:8px; margin:0; }
   .controls button{
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
     font-family:inherit; font-size:.88em; cursor:pointer;
-    background:var(--gold); color:#fff; border:none;
-    padding:9px 12px; border-radius:8px; font-weight:600;
-    box-shadow:0 2px 6px rgba(0,0,0,.2);
+    background:var(--gold-gradient); color:#fff; border:none;
+    padding:9px 12px; border-radius:var(--radius-sm); font-weight:600;
+    box-shadow:var(--shadow-sm);
+    transition:box-shadow .15s ease, transform .15s ease, opacity .15s ease;
   }
-  .controls button:hover{ background:var(--gold-dark); }
+  .controls button:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  .controls button:active{ transform:translateY(0); box-shadow:var(--shadow-sm); }
   .controls button:disabled{ opacity:.4; cursor:default; }
-  .controls button:disabled:hover{ background:var(--gold); }
+  .controls button:disabled:hover{ box-shadow:var(--shadow-sm); transform:none; }
   /* matches the other green pill buttons in this toolbar (white bold text) —
      it used to be a plain white/outlined checkbox that stood out from its
      green siblings */
   .hide-female-toggle{
-    display:flex; align-items:center; justify-content:center; gap:6px; background:var(--gold);
-    border:none; border-radius:8px; padding:8px 10px; font-size:.85em; font-weight:700;
-    color:#fff; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px; background:var(--gold-gradient);
+    border:none; border-radius:var(--radius-sm); padding:8px 10px; font-size:.85em; font-weight:700;
+    color:#fff; cursor:pointer; box-shadow:var(--shadow-sm);
+    transition:box-shadow .15s ease, transform .15s ease;
   }
+  .hide-female-toggle:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
   .hide-female-toggle input{ accent-color:#fff; }
 
   .tree-viewport{
     background:#fbfdfc;
-    border:3px solid var(--gold); border-radius:20px;
+    border:1.5px solid var(--line); border-radius:var(--radius-lg);
     padding:14px 10px; margin-top:10px;
     display:flex; align-items:flex-start; gap:14px;
+    box-shadow:var(--shadow-lg);
   }
   .tree-content{ flex:1 1 auto; min-width:0; }
 
@@ -103,27 +127,28 @@
   .search-field{ display:flex; flex-direction:column; gap:4px; position:relative; }
   .suggest-box{
     position:absolute; top:100%; right:0; left:0; z-index:30; margin-top:4px;
-    background:#161f1a; border:1.5px solid #000; border-radius:10px;
+    background:var(--maroon); border:1.5px solid #000; border-radius:var(--radius-sm);
     max-height:220px; overflow-y:auto; display:none;
-    box-shadow:0 6px 18px rgba(0,0,0,.35);
+    box-shadow:var(--shadow-lg);
   }
   .suggest-box.open{ display:block; }
-  .suggest-box div{ padding:10px 12px; font-size:.9em; font-weight:700; color:#fff; cursor:pointer; border-bottom:1px solid #333; }
+  .suggest-box div{ padding:10px 12px; font-size:.9em; font-weight:700; color:#fff; cursor:pointer; border-bottom:1px solid #2a3a30; }
   .suggest-box div:last-child{ border-bottom:none; }
   .suggest-box div:hover{ background:#2f4335; }
   .suggest-box div.empty{ color:#9aa89f; cursor:default; }
-  .suggest-box div.empty:hover{ background:#161f1a; }
-  .search-field label{ font-size:.78em; color:#3f5c4c; font-weight:700; padding:0 3px; }
+  .suggest-box div.empty:hover{ background:var(--maroon); }
+  .search-field label{ font-size:.78em; color:var(--ink-soft); font-weight:700; padding:0 3px; }
   .search-field input{
-    font-family:inherit; font-size:.9em; padding:8px 12px; border-radius:10px;
-    border:1.5px solid #ddd; width:100%; direction:rtl; background:#fff; color:#1c2e24;
+    font-family:inherit; font-size:.9em; padding:8px 12px; border-radius:var(--radius-sm);
+    border:1.5px solid var(--line); width:100%; direction:rtl; background:#fff; color:#1c2e24;
+    transition:border-color .15s ease, box-shadow .15s ease;
   }
   .search-field input::placeholder{ color:#9dbfa9; }
-  .search-field input:focus{ outline:none; border-color:var(--male); }
+  .search-field input:focus{ outline:none; border-color:var(--male); box-shadow:0 0 0 3px rgba(63,143,104,.15); }
   #searchResults, #relResults{
     margin-top:8px; background:#fff;
-    border:2px solid var(--gold); border-radius:10px; max-height:280px;
-    overflow-y:auto; display:none; box-shadow:0 6px 18px rgba(0,0,0,.2);
+    border:1.5px solid var(--gold); border-radius:var(--radius-sm); max-height:280px;
+    overflow-y:auto; display:none; box-shadow:var(--shadow-lg);
   }
   #searchResults div, #relResults div{ padding:8px 10px; cursor:pointer; border-bottom:1px solid #eee; font-size:.85em; }
   #searchResults div:hover, #relResults div:hover{ background:#e6f4ea; }
@@ -189,33 +214,48 @@
     .search-field input{ width:110px; }
   }
 
+  /* ================= branded header ================= */
+  .site-header{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    margin:2px 0 14px; padding:2px 0;
+  }
+  .site-logo{ width:38px; height:38px; display:block; }
+  .site-title{
+    margin:0; font-size:1.22em; font-weight:800; color:var(--maroon);
+    letter-spacing:.2px;
+  }
+
   /* ================= design switcher ================= */
   .theme-switcher{
-    display:flex; align-items:center; justify-content:center; gap:6px;
-    margin:0 0 10px; font-size:.82em; color:#3f5c4c; flex-wrap:wrap;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    margin:0 0 14px; font-size:.82em; color:var(--ink-soft); flex-wrap:wrap;
   }
   .theme-switcher .theme-btn{
+    display:inline-flex; align-items:center; gap:6px;
     font-family:inherit; font-size:.95em; cursor:pointer;
-    background:#fff; color:#3f5c4c; border:1.5px solid #ddd;
-    padding:7px 14px; border-radius:999px; font-weight:700;
+    background:#fff; color:var(--ink-soft); border:1.5px solid var(--line);
+    padding:7px 16px; border-radius:999px; font-weight:700;
+    box-shadow:var(--shadow-sm);
+    transition:box-shadow .15s ease, transform .15s ease, border-color .15s ease, color .15s ease;
   }
+  .theme-switcher .theme-btn:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
   html[data-theme="modern"] .theme-btn[data-theme-choice="modern"],
   html[data-theme="circular"] .theme-btn[data-theme-choice="circular"]{
-    background:var(--male); color:#fff; border-color:var(--male);
+    background:var(--gold-gradient); color:#fff; border-color:transparent;
   }
 
   /* ================= modern theme (mobile-friendly) ================= */
   html[data-theme="modern"] body{ background:#f3f6f4; }
   html[data-theme="modern"] .tree-viewport{
-    background:#fff; border:1px solid #e3e9e6; border-radius:16px;
-    box-shadow:0 1px 3px rgba(0,0,0,.05);
+    background:#fff; border:1.5px solid var(--line); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-lg);
   }
   html[data-theme="modern"] .controls{ flex-direction:row; flex-wrap:wrap; }
   html[data-theme="modern"] .controls button{ flex:1 1 auto; min-height:42px; }
   html[data-theme="modern"] .hide-female-toggle{ flex:1 1 100%; min-height:42px; }
 
-  html[data-theme="modern"] .row{ min-height:48px; padding:6px 10px; border-radius:12px; gap:10px; }
-  html[data-theme="modern"] .row:hover{ background:#f0f4f2; }
+  html[data-theme="modern"] .row{ min-height:48px; padding:6px 10px; border-radius:var(--radius-md); gap:10px; transition:background .12s ease; }
+  html[data-theme="modern"] .row:hover{ background:var(--gold-light); }
   html[data-theme="modern"] .toggle{ width:22px; height:22px; font-size:1em; line-height:22px; }
   html[data-theme="modern"] .spacer{ width:22px; }
   html[data-theme="modern"] .branch-bar{
@@ -224,20 +264,21 @@
     color:#fff; font-weight:800; font-size:.82em;
     background:var(--branch-solid, #1f6b45) !important;
     text-shadow:0 1px 2px rgba(0,0,0,.45);
+    box-shadow:var(--shadow-sm);
   }
   html[data-theme="modern"] .branch-bar::before{ content: attr(data-initial); }
   html[data-theme="modern"] .name{ font-size:1.03em; }
   html[data-theme="modern"] .count{
-    background:#eef2ef; padding:2px 9px; border-radius:999px; font-size:.72em;
+    background:var(--gold-light); color:var(--ink-soft); padding:2px 9px; border-radius:999px; font-size:.72em;
   }
   html[data-theme="modern"] .children{
-    border-inline-start:1.5px solid #eef2ef; margin-inline-start:15px; padding-inline-start:15px;
+    border-inline-start:1.5px solid var(--line); margin-inline-start:15px; padding-inline-start:15px;
   }
 
   /* ================= list hint banner (شجرة الصالح page) ================= */
   .list-hint{
-    background:#eaf5ee; border:1.5px solid var(--gold); border-radius:10px;
-    padding:9px 12px; font-size:.85em; color:#1f6b45; font-weight:700; margin:0 0 10px;
+    background:var(--gold-light); border:1.5px solid var(--gold); border-radius:var(--radius-sm);
+    padding:9px 12px; font-size:.85em; color:var(--gold-dark); font-weight:700; margin:0 0 10px;
   }
 
   /* ================= circular theme (radial / sunburst chart) ================= */
@@ -245,27 +286,41 @@
   html[data-theme="circular"] #treeContent{ display:none; }
   html[data-theme="circular"] .circular-view{ display:block; }
   html[data-theme="circular"] .tree-viewport{
-    background:#fff; border:1px solid #e3e9e6; border-radius:16px;
-    box-shadow:0 1px 3px rgba(0,0,0,.05);
+    background:#fff; border:1.5px solid var(--line); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-lg);
   }
   .relatives-search-panel{ max-width:420px; margin:14px auto 0; text-align:right; }
-  .relatives-search-panel .rel-intro{ color:#3f5c4c; font-size:.9em; margin:0 0 12px; text-align:center; }
+  .relatives-search-panel .rel-intro{ color:var(--ink-soft); font-size:.9em; margin:0 0 12px; text-align:center; }
+  #relSearchBtn{
+    display:flex; align-items:center; justify-content:center; gap:8px; font-family:inherit; font-weight:800;
+    font-size:.92em; cursor:pointer; background:var(--gold-gradient); color:#fff; border:none;
+    padding:10px 14px; border-radius:var(--radius-md); box-shadow:var(--shadow-sm);
+    transition:box-shadow .15s ease, transform .15s ease;
+  }
+  #relSearchBtn:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
   .circular-chart-panel{ display:none; }
   .circular-toolbar{
     display:flex; align-items:center; justify-content:center; gap:10px;
     flex-wrap:wrap; padding:10px 6px 0;
   }
   .circular-toolbar button{
+    display:inline-flex; align-items:center; gap:6px;
     font-family:inherit; font-size:.85em; cursor:pointer;
-    background:var(--male); color:#fff; border:none;
-    padding:8px 14px; border-radius:999px; font-weight:700;
+    background:var(--gold-gradient); color:#fff; border:none;
+    padding:8px 16px; border-radius:999px; font-weight:700;
+    box-shadow:var(--shadow-sm);
+    transition:box-shadow .15s ease, transform .15s ease, opacity .15s ease;
   }
+  .circular-toolbar button:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
   .circular-toolbar button:disabled{ opacity:.4; cursor:default; }
+  .circular-toolbar button:disabled:hover{ box-shadow:var(--shadow-sm); transform:none; }
   /* match the إخفاء الإناث toggle to the rest of this toolbar's pill buttons */
   .circular-toolbar .hide-female-toggle{
-    background:var(--male); color:#fff; border:none;
-    padding:8px 14px; border-radius:999px; font-weight:700; font-size:.85em;
+    background:var(--gold-gradient); color:#fff; border:none;
+    padding:8px 16px; border-radius:999px; font-weight:700; font-size:.85em;
+    box-shadow:var(--shadow-sm); transition:box-shadow .15s ease, transform .15s ease;
   }
+  .circular-toolbar .hide-female-toggle:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
   .circular-toolbar .hide-female-toggle input{ accent-color:#fff; }
   .circ-zoom-wrap{
     width:100%; max-width:560px; margin:10px auto 0; overflow:hidden;
@@ -303,7 +358,7 @@
      toast completely. The top is always clear of the keyboard. */
   .arabic-toast{
     position:fixed; top:16px; bottom:auto; left:50%; transform:translateX(-50%) translateY(-16px);
-    background:#1c2e24; color:#fff; font-weight:700; font-size:.92em;
+    background:var(--maroon); color:#fff; font-weight:700; font-size:.92em;
     padding:12px 22px; border-radius:999px; box-shadow:0 8px 22px rgba(0,0,0,.35);
     opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:999; max-width:90vw; text-align:center;
   }
@@ -311,21 +366,40 @@
 </style>
 </head>
 <body>
+<svg style="display:none" aria-hidden="true">
+  <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="ic-expand" viewBox="0 0 24 24"><polyline points="7 7 12 12 17 7"/><polyline points="7 13 12 18 17 13"/></symbol>
+  <symbol id="ic-collapse" viewBox="0 0 24 24"><polyline points="17 17 12 12 7 17"/><polyline points="17 11 12 6 7 11"/></symbol>
+  <symbol id="ic-eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-10-8-10-8a18.46 18.46 0 0 1 4.22-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="2" y1="2" x2="22" y2="22"/></symbol>
+  <symbol id="ic-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+  <symbol id="ic-rotate" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
+  <symbol id="ic-tree" viewBox="0 0 24 24">
+    <circle cx="12" cy="4.5" r="2"/><circle cx="5.5" cy="15" r="2"/><circle cx="18.5" cy="15" r="2"/>
+    <line x1="12" y1="6.5" x2="6.2" y2="13.3"/><line x1="12" y1="6.5" x2="17.8" y2="13.3"/>
+    <line x1="5.5" y1="17" x2="5.5" y2="20"/><line x1="18.5" y1="17" x2="18.5" y2="20"/>
+  </symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+</svg>
 <div class="wrap">
 
+  <header class="site-header">
+    <img src="android-chrome-512x512.png" alt="شعار شجرة أسرة الصالح" class="site-logo">
+    <h1 class="site-title">شجرة أسرة الصالح</h1>
+  </header>
+
   <div class="theme-switcher">
-    <button type="button" class="theme-btn" data-theme-choice="modern">شجرة الصالح</button>
-    <button type="button" class="theme-btn" data-theme-choice="circular">أقربائي</button>
+    <button type="button" class="theme-btn" data-theme-choice="modern"><svg class="btn-ic"><use href="#ic-tree"></use></svg> شجرة الصالح</button>
+    <button type="button" class="theme-btn" data-theme-choice="circular"><svg class="btn-ic"><use href="#ic-users"></use></svg> أقربائي</button>
   </div>
 
   <div class="tree-viewport">
     <div class="tree-content" id="treeContent">
       <div class="controls">
-        <button id="expandAllBtn">↧ توسيع الكل</button>
-        <button id="collapseAllBtn">↥ طي الكل</button>
-        <label class="hide-female-toggle"><input type="checkbox" id="hideFemaleChk"> إخفاء الإناث</label>
-        <button id="listSearchToggleBtn">🔍 بحث</button>
-        <button id="listBackBtn" disabled>⬅ رجوع</button>
+        <button id="expandAllBtn"><svg class="btn-ic"><use href="#ic-expand"></use></svg> توسيع الكل</button>
+        <button id="collapseAllBtn"><svg class="btn-ic"><use href="#ic-collapse"></use></svg> طي الكل</button>
+        <label class="hide-female-toggle"><input type="checkbox" id="hideFemaleChk"> <svg class="btn-ic"><use href="#ic-eye-off"></use></svg> إخفاء الإناث</label>
+        <button id="listSearchToggleBtn"><svg class="btn-ic"><use href="#ic-search"></use></svg> بحث</button>
+        <button id="listBackBtn" disabled><svg class="btn-ic"><use href="#ic-arrow-left"></use></svg> رجوع</button>
       </div>
 
       <div class="search-panel-wrap collapsed" id="listSearchPanelWrap">
@@ -395,7 +469,7 @@
               <input id="relBranch" type="text" placeholder="مطلوب" autocomplete="off">
               <div class="suggest-box" id="relBranchSuggestBox"></div>
             </div>
-            <button id="relSearchBtn" type="button"><span class="ic">🔍</span> عرض شجرة الأقارب</button>
+            <button id="relSearchBtn" type="button"><svg class="btn-ic"><use href="#ic-search"></use></svg> عرض شجرة الأقارب</button>
             <div id="relResults"></div>
           </div>
         </div>
@@ -404,10 +478,10 @@
       <div class="circular-chart-panel" id="circularChartPanel">
         <p class="list-hint">أضغط على أي أسم لفتح شجرته</p>
         <div class="circular-toolbar">
-          <button type="button" id="relNewSearchBtn">🔍 بحث جديد</button>
-          <button type="button" id="circBackBtn">⬅ رجوع</button>
-          <button type="button" id="circZoomResetBtn">↺ الحجم الأصلي</button>
-          <label class="hide-female-toggle"><input type="checkbox" id="circHideFemaleChk"> إخفاء الإناث</label>
+          <button type="button" id="relNewSearchBtn"><svg class="btn-ic"><use href="#ic-search"></use></svg> بحث جديد</button>
+          <button type="button" id="circBackBtn"><svg class="btn-ic"><use href="#ic-arrow-left"></use></svg> رجوع</button>
+          <button type="button" id="circZoomResetBtn"><svg class="btn-ic"><use href="#ic-rotate"></use></svg> الحجم الأصلي</button>
+          <label class="hide-female-toggle"><input type="checkbox" id="circHideFemaleChk"> <svg class="btn-ic"><use href="#ic-eye-off"></use></svg> إخفاء الإناث</label>
         </div>
         <div class="circ-zoom-wrap" id="circZoomWrap">
           <svg id="circSvg" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet"></svg>

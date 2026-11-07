@@ -16,9 +16,18 @@
   :root{
     --gold:#2f8f5e;
     --gold-dark:#1f6b45;
-    --maroon:#163625;
+    --gold-light:#eaf6f0;
+    --gold-gradient:linear-gradient(135deg, #37a173, var(--gold-dark));
+    --maroon:#16241c;
     --male:#3f8f68;
     --female:#c0392b;
+    --line:#e3e9e6;
+    --ink-soft:#3f5c4c;
+    --shadow-sm:0 1px 3px rgba(17,45,32,.10);
+    --shadow-md:0 4px 14px rgba(17,45,32,.14);
+    --radius-sm:8px;
+    --radius-md:12px;
+    --radius-lg:18px;
   }
   *{box-sizing:border-box;}
   body{
@@ -28,73 +37,106 @@
     color:#1c2e24;
   }
   .wrap{ max-width:560px; margin:0 auto; padding:24px 16px 60px; display:flex; flex-direction:column; gap:18px; }
+  .btn-ic{
+    width:16px; height:16px; flex:0 0 auto;
+    stroke:currentColor; stroke-width:2.1; fill:none;
+    stroke-linecap:round; stroke-linejoin:round;
+  }
+  .site-header{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    margin:2px 0 0;
+  }
+  .site-logo{ width:36px; height:36px; display:block; }
+  .site-title{ margin:0; font-size:1.15em; font-weight:800; color:var(--maroon); }
   .title-card{
-    text-align:center; margin:0 auto; padding:14px 20px;
-    background:#f7fbf8; border:3px solid var(--gold); border-radius:14px;
-    box-shadow:0 4px 14px rgba(0,0,0,.18); width:100%;
+    text-align:center; margin:0 auto; padding:16px 20px;
+    background:#f7fbf8; border:1.5px solid var(--line); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-md); width:100%;
   }
   .title-card h1{ margin:0 0 4px; font-size:1.3em; color:var(--maroon); }
-  .title-card p{ margin:0; color:#3f5c4c; font-size:.88em; line-height:1.6; }
-  .title-card a{ color:var(--gold-dark); font-weight:700; }
+  .title-card p{ margin:0; color:var(--ink-soft); font-size:.88em; line-height:1.6; }
+  .title-card a{
+    display:inline-flex; align-items:center; gap:5px;
+    color:var(--gold-dark); font-weight:700;
+  }
 
   .panel{
-    background:#f2f9f4; border:1.5px solid #ddd; border-radius:16px;
+    background:#f2f9f4; border:1.5px solid var(--line); border-radius:var(--radius-lg);
     padding:16px; display:flex; flex-direction:column; gap:10px;
+    box-shadow:var(--shadow-sm);
   }
   .panel-title{ font-size:1.02em; font-weight:800; color:var(--maroon); margin:0 0 2px; }
   .field{ display:flex; flex-direction:column; gap:4px; }
-  .field label{ font-size:.82em; color:#3f5c4c; font-weight:700; padding:0 3px; }
+  .field label{ font-size:.82em; color:var(--ink-soft); font-weight:700; padding:0 3px; }
   .field input, .field select{
-    font-family:inherit; font-size:.94em; padding:9px 12px; border-radius:10px;
-    border:1.5px solid #ddd; width:100%; direction:rtl; background:#fff; color:#1c2e24;
+    font-family:inherit; font-size:.94em; padding:9px 12px; border-radius:var(--radius-sm);
+    border:1.5px solid var(--line); width:100%; direction:rtl; background:#fff; color:#1c2e24;
+    transition:border-color .15s ease, box-shadow .15s ease;
   }
   .field input::placeholder{ color:#9dbfa9; }
-  .field input:focus, .field select:focus{ outline:none; border-color:var(--male); }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--male); box-shadow:0 0 0 3px rgba(63,143,104,.15); }
   .subtitle{ font-size:.82em; font-weight:700; color:var(--maroon); margin:8px 0 0; }
-  .note{ font-size:.82em; color:#3f5c4c; line-height:1.7; margin:0; }
+  .note{ font-size:.82em; color:var(--ink-soft); line-height:1.7; margin:0; }
   .note a{ color:var(--gold-dark); }
   hr.sep{ border:none; border-top:1.5px dashed #cfe0d6; margin:6px 0; }
 
   .secondary-btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
     font-family:inherit; font-size:.9em; cursor:pointer; background:#fff; color:var(--male);
-    border:1.5px solid var(--male); border-radius:10px; padding:10px 12px; font-weight:700;
+    border:1.5px solid var(--male); border-radius:var(--radius-sm); padding:10px 12px; font-weight:700;
+    transition:background .15s ease, box-shadow .15s ease, transform .15s ease;
   }
-  .secondary-btn:hover{ background:#eafaf1; }
+  .secondary-btn:hover{ background:var(--gold-light); box-shadow:var(--shadow-sm); transform:translateY(-1px); }
   .result-list{ max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:5px; }
   .result-list div{
-    padding:8px 10px; cursor:pointer; border:1px solid #eee; border-radius:8px; font-size:.87em; background:#fff;
+    padding:8px 10px; cursor:pointer; border:1px solid #eee; border-radius:var(--radius-sm); font-size:.87em; background:#fff;
+    transition:background .12s ease;
   }
   .result-list div:hover{ background:#e6f4ea; }
   .result-list .path{ color:#888; font-size:.78em; margin-top:2px; }
-  .result-list div.selected{ border-color:var(--male); background:#eafaf1; }
+  .result-list div.selected{ border-color:var(--male); background:var(--gold-light); }
   .selected-info{ font-size:.86em; color:var(--maroon); font-weight:700; min-height:1.3em; }
-  .children-list{ font-size:.84em; color:#3f5c4c; background:#fff; border:1px solid #ddd; border-radius:10px; padding:8px 10px; line-height:1.9; }
+  .children-list{ font-size:.84em; color:var(--ink-soft); background:#fff; border:1px solid var(--line); border-radius:var(--radius-sm); padding:8px 10px; line-height:1.9; }
   .children-list b{ color:var(--maroon); }
   .children-list .tag-f{ color:var(--female); }
 
   .primary-btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
     font-family:inherit; font-weight:800; font-size:.98em; cursor:pointer;
-    background:var(--gold); color:#fff; border:none; padding:11px 14px; border-radius:10px;
+    background:var(--gold-gradient); color:#fff; border:none; padding:11px 14px; border-radius:var(--radius-sm);
+    box-shadow:var(--shadow-sm);
+    transition:box-shadow .15s ease, transform .15s ease, opacity .15s ease;
   }
-  .primary-btn:disabled{ background:#b9c9bd; cursor:not-allowed; }
-  .primary-btn:not(:disabled):hover{ background:var(--gold-dark); }
+  .primary-btn:hover:not(:disabled){ box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  .primary-btn:disabled{ background:#b9c9bd; cursor:not-allowed; box-shadow:none; }
   .status{ font-size:.86em; min-height:1.3em; line-height:1.6; }
   .status.error{ color:var(--female); }
   .status.ok{ color:var(--gold-dark); }
 
   .blocked-note{
     font-size:.9em; color:#8a6d3b; background:#fff8e6; border:1.5px solid #f0dca0;
-    border-radius:12px; padding:14px; line-height:1.8;
+    border-radius:var(--radius-md); padding:14px; line-height:1.8;
   }
 </style>
 </head>
 <body>
+<svg style="display:none" aria-hidden="true">
+  <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="ic-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+</svg>
 <div class="wrap">
+
+  <header class="site-header">
+    <img src="android-chrome-512x512.png" alt="شعار شجرة أسرة الصالح" class="site-logo">
+    <h1 class="site-title">شجرة أسرة الصالح</h1>
+  </header>
 
   <div class="title-card">
     <h1>لوحة تحكم المشرف</h1>
     <p>إضافة أفراد جدد أو تصحيح أسماء موجودة في شجرة أسرة الصالح. التغييرات تُحفظ مباشرة في مستودع GitHub وتظهر للجميع خلال دقيقة تقريبًا.<br>
-      <a id="backLink" href="index.html">↩ العودة إلى عرض الشجرة الكاملة</a></p>
+      <a id="backLink" href="index.html"><svg class="btn-ic"><use href="#ic-arrow-left"></use></svg> العودة إلى عرض الشجرة الكاملة</a></p>
   </div>
 
   <div id="loadingNote" class="blocked-note">جارٍ تحميل بيانات الشجرة…</div>
@@ -148,12 +190,12 @@
     <datalist id="ggfatherList"></datalist>
     <datalist id="branchList"></datalist>
 
-    <button id="findFatherBtn" type="button" class="secondary-btn">🔎 تحديد الأب</button>
+    <button id="findFatherBtn" type="button" class="secondary-btn"><svg class="btn-ic"><use href="#ic-search"></use></svg> تحديد الأب</button>
     <div id="fatherResults" class="result-list"></div>
     <div id="selectedFatherInfo" class="selected-info"></div>
     <div id="fatherChildrenList" class="children-list" hidden></div>
 
-    <button id="submitBtn" type="button" class="primary-btn" disabled>إضافة</button>
+    <button id="submitBtn" type="button" class="primary-btn" disabled><svg class="btn-ic"><use href="#ic-plus"></use></svg><span class="btn-label">إضافة</span></button>
     <div id="statusMsg" class="status"></div>
   </div>
 
@@ -187,7 +229,7 @@
     <datalist id="corrGgfatherList"></datalist>
     <datalist id="corrBranchList"></datalist>
 
-    <button id="findPersonBtn" type="button" class="secondary-btn">🔎 بحث</button>
+    <button id="findPersonBtn" type="button" class="secondary-btn"><svg class="btn-ic"><use href="#ic-search"></use></svg> بحث</button>
     <div id="personResults" class="result-list"></div>
     <div id="selectedPersonInfo" class="selected-info"></div>
 
@@ -204,7 +246,7 @@
           <option value="female">بنت (أنثى)</option>
         </select>
       </div>
-      <button id="correctSubmitBtn" type="button" class="primary-btn">حفظ التصحيح</button>
+      <button id="correctSubmitBtn" type="button" class="primary-btn"><svg class="btn-ic"><use href="#ic-check"></use></svg><span class="btn-label">حفظ التصحيح</span></button>
     </div>
     <div id="corrStatusMsg" class="status"></div>
   </div>
@@ -514,9 +556,10 @@
 
     const path = indexPath(selectedFatherNode);
     const fatherRef = selectedFatherNode;
+    const submitBtnLabel = submitBtn.querySelector('.btn-label');
     submitBtn.disabled = true;
-    const prevLabel = submitBtn.textContent;
-    submitBtn.textContent = 'جارٍ الإضافة...';
+    const prevLabel = submitBtnLabel.textContent;
+    submitBtnLabel.textContent = 'جارٍ الإضافة...';
 
     try {
       await appendToGithubArray(
@@ -537,7 +580,7 @@
       showStatus('تعذّرت الإضافة: ' + (err && err.message ? err.message : err), true);
     } finally {
       submitBtn.disabled = false;
-      submitBtn.textContent = prevLabel;
+      submitBtnLabel.textContent = prevLabel;
     }
   });
 
@@ -637,9 +680,10 @@
 
     const path = indexPath(selectedPersonNode);
     const personRef = selectedPersonNode;
+    const correctSubmitBtnLabel = correctSubmitBtn.querySelector('.btn-label');
     correctSubmitBtn.disabled = true;
-    const prevLabel = correctSubmitBtn.textContent;
-    correctSubmitBtn.textContent = 'جارٍ الحفظ...';
+    const prevLabel = correctSubmitBtnLabel.textContent;
+    correctSubmitBtnLabel.textContent = 'جارٍ الحفظ...';
 
     try {
       await appendToGithubArray(
@@ -657,7 +701,7 @@
       showCorrStatus('تعذّر الحفظ: ' + (err && err.message ? err.message : err), true);
     } finally {
       correctSubmitBtn.disabled = false;
-      correctSubmitBtn.textContent = prevLabel;
+      correctSubmitBtnLabel.textContent = prevLabel;
     }
   });
 
