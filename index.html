@@ -88,11 +88,15 @@
   html{ overflow-x:hidden; max-width:100%; }
   /* overflow-x:hidden alone stops the page from being scrolled sideways,
      but on an actual phone there's a second, separate cause of "the screen
-     moves a little left/right": the browser's own rubber-band/bounce
-     gesture at the edges. overscroll-behavior turns that off on the X axis
-     specifically (vertical bounce is left alone — only sideways movement
-     was reported as a problem). */
-  html, body{ overscroll-behavior-x:none; }
+     moves a little": the browser's own rubber-band/bounce gesture at the
+     edges. overscroll-behavior turns that off. (Originally this only
+     disabled it on the X axis, since only sideways movement had been
+     reported -- now that the mobile "app shell" layout below keeps the
+     whole page from scrolling at all and puts a touch gesture on
+     #treeViewport/.circ-scroll-area instead, a vertical bounce there can
+     also visibly wiggle the "fixed" header/toolbar above it, so this now
+     covers both axes; see those elements' own overscroll-behavior too.) */
+  html, body{ overscroll-behavior:none; }
   body{
     margin:0; padding:0;
     font-family:'Cairo','Tahoma',sans-serif;
@@ -394,8 +398,18 @@
   @media (max-width: 768px){
     html, body{ height:100%; overflow:hidden; }
     .wrap{
-      height:100vh; max-height:100vh; overflow:hidden;
-      display:flex; flex-direction:column; padding:10px 12px 0;
+      /* 100dvh (falls back to 100vh in older browsers, which simply don't
+         recognize the dvh unit and keep the line above) tracks the
+         ACTUAL visible height as a phone's browser chrome (address bar)
+         animates in/out during a touch scroll. Plain 100vh is a static
+         number (usually sized for the chrome-hidden state) that doesn't
+         track that animation, so the "fixed" header/toolbar above the
+         scrollable tree could visibly jump/wiggle as the chrome moved --
+         reported as the whole top area wiggling up/down (and, since a
+         resize also nudges flex layout horizontally by a sub-pixel or two
+         on some phones, left/right as well). */
+      height:100vh; height:100dvh; max-height:100vh; max-height:100dvh;
+      overflow:hidden; display:flex; flex-direction:column; padding:10px 12px 0;
     }
     .site-header, .theme-switcher{ flex:0 0 auto; }
     /* Each generation indents its .children by 30px (15+15) on the
@@ -443,10 +457,16 @@
        little room for even the row's own avatar + name -- auto lets a
        phone swipe sideways within this one pane (never the whole page) to
        reach the rest of a row like that, instead of it being impossible
-       to read at all. */
+       to read at all.
+
+       overscroll-behavior:none stops a touch-scroll that reaches the top
+       or bottom of THIS pane from "chaining" into a rubber-band bounce of
+       whatever's behind/above it -- without it, the "fixed" header/
+       toolbar could visibly wiggle when a phone's scroll gesture
+       overshoots the end of the tree. */
     #treeViewport{
       flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:auto;
-      -webkit-overflow-scrolling:touch; padding-bottom:24px;
+      -webkit-overflow-scrolling:touch; overscroll-behavior:none; padding-bottom:24px;
     }
 
     /* أقربائي (circular) page: hint banner + its own toolbar stay put;
@@ -456,13 +476,14 @@
     }
     .relatives-search-panel{
       flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden;
-      -webkit-overflow-scrolling:touch;
+      -webkit-overflow-scrolling:touch; overscroll-behavior:none;
     }
     .circular-chart-panel{ display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; }
     .circular-chart-panel > .list-hint, .circular-toolbar{ flex:0 0 auto; }
+    /* same overscroll-behavior:none reasoning as #treeViewport, above */
     .circ-scroll-area{
       flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden;
-      -webkit-overflow-scrolling:touch; padding-bottom:24px;
+      -webkit-overflow-scrolling:touch; overscroll-behavior:none; padding-bottom:24px;
     }
   }
 </style>
