@@ -4,6 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>شجرة أسرة الصالح — القائمة الكاملة</title>
+<meta name="description" content="تصفح شجرة عائلة الصالح الكاملة، وابحث عن أقاربك بالاسم واسم الأب والجد.">
+<!-- Open Graph / Twitter Card -- so sharing the site link in WhatsApp,
+     Telegram, etc. shows a proper preview card instead of a bare link -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ar_AR">
+<meta property="og:url" content="https://alsalehfamilytree.com/">
+<meta property="og:title" content="شجرة أسرة الصالح">
+<meta property="og:description" content="تصفح شجرة عائلة الصالح الكاملة، وابحث عن أقاربك بالاسم واسم الأب والجد.">
+<meta property="og:image" content="https://alsalehfamilytree.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="شجرة أسرة الصالح">
+<meta name="twitter:description" content="تصفح شجرة عائلة الصالح الكاملة، وابحث عن أقاربك بالاسم واسم الأب والجد.">
+<meta name="twitter:image" content="https://alsalehfamilytree.com/og-image.png">
 <!-- site logo / favicon (shown in browser tabs, bookmarks, and eventually
      Google search results once Google re-crawls the live site) -->
 <link rel="icon" href="favicon.ico" sizes="any">
@@ -12,6 +27,12 @@
 <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="manifest" href="site.webmanifest">
+<!-- PWA: lets phones "Add to Home Screen" and keep the right color scheme -->
+<meta name="theme-color" content="#2f8f5e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="شجرة الصالح">
 <script>
   // Apply the saved page choice immediately (before first paint) so there's
   // no flash of the wrong page when the page loads. Only two pages exist now:
@@ -1703,6 +1724,18 @@
     console.error('failed to load tree data:', err);
     document.getElementById('loadNote').textContent = 'تعذر تحميل بيانات الشجرة. تأكد أن data/tree.json موجود بجانب هذه الصفحة.';
   });
+</script>
+<script>
+  // PWA: lets the site be added to a phone's home screen and keep working
+  // on a weak/offline connection. Safe to no-op anywhere this isn't
+  // supported (older browsers, or a non-HTTPS preview) -- the site works
+  // exactly the same either way, this just adds the offline/installable
+  // layer on top where the browser allows it.
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
 </script>
 </body>
 </html>

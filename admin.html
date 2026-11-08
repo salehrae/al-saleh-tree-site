@@ -4,12 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>لوحة تحكم المشرف — شجرة أسرة الصالح</title>
+<!-- admin tool, not a page anyone should land on from a search engine -->
+<meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#2f8f5e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -752,6 +758,18 @@
     console.error('failed to load tree data:', err);
     document.getElementById('loadingNote').textContent = 'تعذر تحميل بيانات الشجرة. تأكد أن data/tree.json موجود بجانب هذه الصفحة.';
   });
+</script>
+<script>
+  // same service worker as the main site -- lets this page's shell load
+  // instantly too. Note this never caches the GitHub API calls that save
+  // additions/corrections (those are cross-origin PUT/POST requests, which
+  // sw.js deliberately never intercepts), so adding/correcting a member
+  // always needs a real connection, exactly as before.
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
 </script>
 </body>
 </html>
