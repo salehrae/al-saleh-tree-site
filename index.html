@@ -177,23 +177,10 @@
   #searchResults div.error, #relResults div.error{ cursor:default; color:#c0392b; font-weight:700; }
   #searchResults div.error:hover, #relResults div.error:hover{ background:#fff; }
 
-  @media (max-width: 768px){
-    .tree-viewport{ flex-direction:column; }
-    /* توسيع الكل / طي الكل / إخفاء الإناث / بحث / رجوع are always visible
-       now (no more toggle button to reveal them), and stay pinned to a
-       fixed spot on the screen on a phone so they stay reachable while
-       scrolling through a long, expanded tree. This has to be `fixed`,
-       not `sticky` — on a phone .tree-content (the whole, possibly huge,
-       tree) comes before anything else in the stacked mobile layout, so a
-       merely-sticky toolbar would sit below all of it and never get a
-       chance to stick near the top; `fixed` pins it to the screen itself,
-       independent of where it falls in the page. */
-    html[data-theme="modern"] .controls{
-      position:fixed; top:8px; left:12px; right:12px; z-index:40;
-      background:#fff; padding:8px; margin:0;
-      border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.18);
-    }
-  }
+  /* the full mobile "app shell" layout (header/pills/toolbar/hint fixed,
+     only the tree or chart scrolling) lives in one place near the very
+     end of this stylesheet, after the circular-theme rules it also
+     touches -- see the "mobile app shell" block further down. */
 
   .node{ }
   .row{
@@ -384,6 +371,83 @@
     opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:999; max-width:90vw; text-align:center;
   }
   .arabic-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ================= mobile "app shell" layout =================
+     On a phone, everything above the actual tree content -- the
+     logo/title, the شجرة الصالح/أقربائي switcher pills, the toolbar
+     buttons (plus the بحث panel when it's open), and the hint banner --
+     stays fixed in place and never scrolls away. Exactly one region
+     below all of that becomes its own independently scrollable pane
+     that fills whatever height is left: the tree rows themselves
+     (#treeViewport) on the شجرة الصالح page, or the circular chart plus
+     its own zoom-hint/caption (.circ-scroll-area) on the أقربائي page --
+     where the chart's existing custom pinch/pan/zoom keeps working
+     exactly as before, just inside a shorter pane.
+
+     This replaces the old position:fixed + JS-measured-margin approach
+     (one fixed toolbar, with .wrap pushed down by its height). A plain
+     flex column does the same job with no JS at all: every "chrome"
+     piece below is flex:0 0 auto (sized to its own content, never grows
+     or shrinks), and the one scrollable pane per page is flex:1 1 auto
+     with its own overflow-y, so the browser's layout engine keeps
+     everything in place with no resize-listener/measurement code. */
+  @media (max-width: 768px){
+    html, body{ height:100%; overflow:hidden; }
+    .wrap{
+      height:100vh; max-height:100vh; overflow:hidden;
+      display:flex; flex-direction:column; padding:10px 12px 0;
+    }
+    .site-header, .theme-switcher{ flex:0 0 auto; }
+    /* .tree-viewport's base rule sets align-items:flex-start for its
+       DESKTOP row layout (so the two unequal-height panels don't stretch
+       to match each other) -- on mobile it's a column instead, where
+       align-items controls WIDTH, not height, and flex-start there means
+       "don't stretch, size to content": a deeply-expanded row wider than
+       the screen would then grow #treeContent/.circular-view (and
+       everything stacked inside them, including the "fixed" toolbar)
+       past the viewport instead of being contained and clipped by their
+       own inner overflow-x:hidden panes. Restoring the normal stretch
+       behavior here keeps width properly constrained; it has no effect
+       on the desktop row layout, which isn't in this media query. */
+    .tree-viewport{
+      flex-direction:column; align-items:stretch;
+      flex:1 1 auto; min-height:0; min-width:0; overflow:hidden;
+    }
+
+    /* شجرة الصالح (list) page: toolbar + بحث panel + hint banner stay
+       put; only the tree rows (#treeViewport) scroll */
+    .tree-content{ display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; }
+    .controls, #listSearchPanelWrap, .tree-content > .list-hint{ flex:0 0 auto; }
+    /* overflow-x:hidden (+min-width:0) alongside overflow-y:auto on every
+       one of these -- without it, a browser treats a plain overflow-y:auto
+       flex item as overflow-x:auto too AND lets its default min-width:auto
+       grow to fit a deeply-expanded row (توسيع الكل can run 13 generations
+       deep) that's a bit wider than the screen, widening this whole pane
+       (and everything stacked above it, including the "fixed" toolbar) --
+       re-introducing exactly the sideways-drag bug html{overflow-x:hidden}
+       already fixed for the page as a whole (see that rule's own comment,
+       above), just shifted so a phone's narrower screen shows it. */
+    #treeViewport{
+      flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden;
+      -webkit-overflow-scrolling:touch; padding-bottom:24px;
+    }
+
+    /* أقربائي (circular) page: hint banner + its own toolbar stay put;
+       only the chart + its zoom hint/caption (.circ-scroll-area) scroll */
+    html[data-theme="circular"] .circular-view{
+      display:flex; flex-direction:column; height:100%; min-height:0; min-width:0;
+    }
+    .relatives-search-panel{
+      flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden;
+      -webkit-overflow-scrolling:touch;
+    }
+    .circular-chart-panel{ display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; }
+    .circular-chart-panel > .list-hint, .circular-toolbar{ flex:0 0 auto; }
+    .circ-scroll-area{
+      flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden;
+      -webkit-overflow-scrolling:touch; padding-bottom:24px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -504,11 +568,13 @@
           <button type="button" id="circZoomResetBtn"><svg class="btn-ic"><use href="#ic-rotate"></use></svg> الحجم الأصلي</button>
           <label class="hide-female-toggle"><input type="checkbox" id="circHideFemaleChk"> <svg class="btn-ic"><use href="#ic-eye-off"></use></svg> إخفاء الإناث</label>
         </div>
-        <div class="circ-zoom-wrap" id="circZoomWrap">
-          <svg id="circSvg" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="circ-scroll-area">
+          <div class="circ-zoom-wrap" id="circZoomWrap">
+            <svg id="circSvg" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+          <p class="circ-zoom-hint">🔍 قرّب بإصبعين على الجوال، أو بعجلة الفأرة على الكمبيوتر</p>
+          <p class="circ-caption" id="circCaption"></p>
         </div>
-        <p class="circ-zoom-hint">🔍 قرّب بإصبعين على الجوال، أو بعجلة الفأرة على الكمبيوتر</p>
-        <p class="circ-caption" id="circCaption"></p>
       </div>
     </div>
   </div>
@@ -553,31 +619,10 @@
       }
     });
   });
-  const wrapEl = document.querySelector('.wrap');
-  // On a phone the control buttons (توسيع الكل/طي الكل/إخفاء الإناث/بحث/رجوع)
-  // are always visible and pinned to a fixed spot on the screen (see the
-  // .controls CSS), which otherwise floats right over whatever is currently
-  // at the top of the page underneath it — first just the tree's hint
-  // banner, but the شجرة الصالح/أقربائي page-switcher pills sit even higher
-  // up, so pushing only the tree content down wasn't enough; it still
-  // covered the switcher. Pushing the whole page (.wrap) down by the fixed
-  // bar's actual height covers every case at once, whatever happens to be
-  // scrolled to the top. Margin, not padding, so it adds to .wrap's own
-  // padding instead of overriding it.
-  function syncMobileControlsSpacing(){
-    if(!wrapEl) return;
-    const controlsEl = document.querySelector('.controls');
-    const isFixed = controlsEl && getComputedStyle(controlsEl).position === 'fixed'
-      && controlsEl.getClientRects().length > 0; // only when actually visible (شجرة الصالح page, not أقربائي)
-    wrapEl.style.marginTop = isFixed ? (controlsEl.getBoundingClientRect().height + 16) + 'px' : '';
-  }
-  window.addEventListener('resize', syncMobileControlsSpacing);
-  window.addEventListener('orientationchange', syncMobileControlsSpacing);
-  // re-check whenever the page switcher is pressed too, since switching to
-  // أقربائي hides #treeContent (and .controls along with it)
-  document.querySelectorAll('.theme-btn').forEach(btn => {
-    btn.addEventListener('click', () => setTimeout(syncMobileControlsSpacing, 0));
-  });
+  // (On a phone the header/pills/toolbar/hint staying in place while only
+  // the tree or chart scrolls is handled entirely by the mobile "app
+  // shell" CSS now -- see the block right before </style> -- no JS
+  // measurement/resize-listener code is needed for it any more.)
 
   let data; // set once data/tree.json loads
 
@@ -1462,8 +1507,26 @@
     if(searchMatchRow){ searchMatchRow.classList.remove('search-match'); searchMatchRow = null; }
   }
 
+  // On a phone the tree rows now scroll inside their own pane
+  // (#treeViewport, see the mobile "app shell" CSS) instead of the whole
+  // page scrolling, so رجوع's scroll-position save/restore has to target
+  // whichever one is actually the live scroll container right now --
+  // #treeViewport on a phone, the window itself on desktop.
+  function getScrollContainer(){
+    const el = document.getElementById('treeViewport');
+    return (el && getComputedStyle(el).overflowY === 'auto') ? el : null;
+  }
+  function currentScrollPos(){
+    const c = getScrollContainer();
+    return c ? c.scrollTop : window.scrollY;
+  }
+  function restoreScrollPos(pos){
+    const c = getScrollContainer();
+    (c || window).scrollTo({ top: pos, behavior: 'smooth' });
+  }
+
   function revealNode(n){
-    const scrollY = window.scrollY;
+    const scrollY = currentScrollPos();
     const openedAncestors = [];
     let cur = n._parent;
     while(cur){
@@ -1501,7 +1564,7 @@
       const t = cur._row && cur._row.querySelector('.toggle');
       if(t) t.classList.remove('open');
     });
-    window.scrollTo({ top: entry.scrollY, behavior: 'smooth' });
+    restoreScrollPos(entry.scrollY);
     // every reveal in this history came from a بحث search, so undoing one
     // also clears the yellow shadow it set (but only if it's still the same
     // row -- a later search may have already replaced it)
@@ -1679,10 +1742,6 @@
     if(!e.target.closest('.relatives-search-panel .search-panel-wrap')) relResultsBox.style.display = 'none';
   });
 
-  // .controls is always visible now (no more toggle button to reveal it),
-  // so the mobile fixed-bar spacing has to be set up right away too, not
-  // just on resize/theme-switch
-  syncMobileControlsSpacing();
   } // end boot()
 
   // ---- bootstrap: load the base tree plus any admin-saved additions and
