@@ -35,12 +35,13 @@
 <meta name="apple-mobile-web-app-title" content="شجرة الصالح">
 <script>
   // Apply the saved page choice immediately (before first paint) so there's
-  // no flash of the wrong page when the page loads. Only two pages exist now:
-  // 'modern' (شجرة الصالح — القائمة الكاملة) and 'circular' (أقربائي).
+  // no flash of the wrong page when the page loads. Three pages exist now:
+  // 'modern' (شجرة الصالح — القائمة الكاملة), 'circular' (أقربائي), and
+  // 'org' (فرعي — مخطط تنظيمي).
   (function(){
     try{
       var t = localStorage.getItem('altree_theme');
-      document.documentElement.setAttribute('data-theme', (t === 'circular') ? 'circular' : 'modern');
+      document.documentElement.setAttribute('data-theme', (t === 'circular' || t === 'org') ? t : 'modern');
     }catch(e){
       document.documentElement.setAttribute('data-theme', 'modern');
     }
@@ -252,7 +253,8 @@
   }
   .theme-switcher .theme-btn:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
   html[data-theme="modern"] .theme-btn[data-theme-choice="modern"],
-  html[data-theme="circular"] .theme-btn[data-theme-choice="circular"]{
+  html[data-theme="circular"] .theme-btn[data-theme-choice="circular"],
+  html[data-theme="org"] .theme-btn[data-theme-choice="org"]{
     background:var(--gold-gradient); color:#fff; border-color:transparent;
   }
 
@@ -362,6 +364,50 @@
   .circ-center-name{ font-family:'Cairo','Tahoma',sans-serif; font-weight:800; fill:#fff; font-size:17px; }
   .circ-center-gen{ font-family:'Cairo','Tahoma',sans-serif; fill:#d9ecdf; font-size:11px; }
   .circ-caption{ color:#3f5c4c; font-size:.88em; margin:10px 0 16px; font-weight:600; }
+
+  /* ================= فرعي theme (org-chart: boxes + connecting lines) =================
+     Reuses most of أقربائي's markup/CSS outright -- #orgSearchPanel shares
+     .relatives-search-panel, #orgChartPanel shares .circular-chart-panel,
+     its toolbar shares .circular-toolbar, its hint shares .list-hint, its
+     caption shares .circ-caption. Only what's genuinely new to a box+line
+     chart (instead of أقربائي's SVG sunburst) is defined here. */
+  .org-view{ display:none; flex:1 1 auto; min-width:0; text-align:center; }
+  html[data-theme="org"] #treeContent{ display:none; }
+  html[data-theme="org"] .circular-view{ display:none; }
+  html[data-theme="org"] .org-view{ display:block; }
+  html[data-theme="org"] .tree-viewport{
+    background:#fff; border:1.5px solid var(--line); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-lg);
+  }
+  /* unlike .circ-scroll-area (overflow-x:hidden -- أقربائي's chart always
+     fits its own fixed square, with its own pinch/pan/zoom), a wide family
+     here can run past the screen on either axis, so this just scrolls
+     natively on both axes -- no custom touch/gesture system */
+  .org-scroll-area{ width:100%; overflow:auto; padding:6px 2px 20px; }
+  .org-chart-canvas{ position:relative; margin:10px auto 0; }
+  .org-lines{ position:absolute; top:0; left:0; overflow:visible; pointer-events:none; }
+  .org-line{ fill:none; stroke:var(--line); stroke-width:2; }
+  .org-box{
+    position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; border-radius:var(--radius-md); border:1.5px solid var(--line); background:#fff;
+    box-shadow:var(--shadow-sm); cursor:pointer; padding:4px 8px; box-sizing:border-box;
+    transition:box-shadow .15s ease, transform .15s ease;
+  }
+  .org-box:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  /* the box at the top of the currently-centered chart -- pressing it would
+     be a no-op (it's already centered), so it gets no click handler and no
+     hover affordance, and is styled like أقربائي's own center circle */
+  .org-box-root{ cursor:default; background:var(--gold-gradient); border-color:transparent; }
+  .org-box-root:hover{ box-shadow:var(--shadow-sm); transform:none; }
+  .org-box-name{
+    font-weight:800; font-size:.86em; color:var(--maroon); line-height:1.2;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
+  }
+  .org-box.male .org-box-name{ color:var(--male); }
+  .org-box.female .org-box-name{ color:var(--female); }
+  .org-box-root .org-box-name{ color:#fff; }
+  .org-box-count{ font-size:.72em; color:var(--ink-soft); font-weight:700; }
+  .org-box-root .org-box-count{ color:#eaf6f0; }
 
   /* ================= "Arabic names only" warning toast ================= */
   /* Pinned near the TOP of the screen, not the bottom — on a phone, typing
@@ -485,6 +531,20 @@
       flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden;
       -webkit-overflow-scrolling:touch; overscroll-behavior:none; padding-bottom:24px;
     }
+
+    /* فرعي (org-chart) page: hint banner + its own toolbar stay put; only
+       the chart (.org-scroll-area) scrolls. #orgSearchPanel/#orgChartPanel
+       reuse .relatives-search-panel/.circular-chart-panel, already covered
+       by the two mobile rules just above -- only .org-scroll-area itself
+       needs its own rule, since (per the "plain scroll" sizing decision)
+       it scrolls on BOTH axes, unlike .circ-scroll-area above. */
+    html[data-theme="org"] .org-view{
+      display:flex; flex-direction:column; height:100%; min-height:0; min-width:0;
+    }
+    .org-scroll-area{
+      flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:auto;
+      -webkit-overflow-scrolling:touch; overscroll-behavior:none; padding-bottom:24px;
+    }
   }
 </style>
 </head>
@@ -502,6 +562,12 @@
     <line x1="5.5" y1="17" x2="5.5" y2="20"/><line x1="18.5" y1="17" x2="18.5" y2="20"/>
   </symbol>
   <symbol id="ic-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="ic-sitemap" viewBox="0 0 24 24">
+    <rect x="9" y="3" width="6" height="5" rx="1"/>
+    <rect x="2" y="16" width="6" height="5" rx="1"/>
+    <rect x="16" y="16" width="6" height="5" rx="1"/>
+    <path d="M12 8v4M12 12H5v4M12 12h7v4"/>
+  </symbol>
 </svg>
 <div class="wrap">
 
@@ -513,6 +579,7 @@
   <div class="theme-switcher">
     <button type="button" class="theme-btn" data-theme-choice="modern"><svg class="btn-ic"><use href="#ic-tree"></use></svg> شجرة الصالح</button>
     <button type="button" class="theme-btn" data-theme-choice="circular"><svg class="btn-ic"><use href="#ic-users"></use></svg> أقربائي</button>
+    <button type="button" class="theme-btn" data-theme-choice="org"><svg class="btn-ic"><use href="#ic-sitemap"></use></svg> فرعي</button>
   </div>
 
   <div class="tree-viewport">
@@ -615,6 +682,58 @@
         </div>
       </div>
     </div>
+
+    <div class="org-view" id="orgView">
+      <div class="relatives-search-panel" id="orgSearchPanel">
+        <p class="rel-intro">أدخل الأسماء الخمسة لفتح مخطط الفرع التنظيمي</p>
+        <div class="search-panel-wrap">
+          <div class="search-panel">
+            <div class="search-field">
+              <label>الاسم</label>
+              <input id="orgName" type="text" placeholder="مطلوب" autocomplete="off">
+              <div class="suggest-box" id="orgNameSuggestBox"></div>
+            </div>
+            <div class="search-field">
+              <label>اسم الأب</label>
+              <input id="orgFather" type="text" placeholder="مطلوب" autocomplete="off">
+              <div class="suggest-box" id="orgFatherSuggestBox"></div>
+            </div>
+            <div class="search-field">
+              <label>اسم الجد</label>
+              <input id="orgGrandfather" type="text" placeholder="مطلوب" autocomplete="off">
+              <div class="suggest-box" id="orgGrandfatherSuggestBox"></div>
+            </div>
+            <div class="search-field">
+              <label>اسم الجد الأكبر</label>
+              <input id="orgGGFather" type="text" placeholder="مطلوب" autocomplete="off">
+              <div class="suggest-box" id="orgGgfatherSuggestBox"></div>
+            </div>
+            <div class="search-field">
+              <label>الفرع الرئيسي</label>
+              <input id="orgBranch" type="text" placeholder="مطلوب" autocomplete="off">
+              <div class="suggest-box" id="orgBranchSuggestBox"></div>
+            </div>
+            <button id="orgSearchBtn" type="button"><svg class="btn-ic"><use href="#ic-search"></use></svg> عرض المخطط</button>
+            <div id="orgResults"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="circular-chart-panel" id="orgChartPanel">
+        <p class="list-hint">👆 اضغط على أي صندوق لفتح فرعه</p>
+        <div class="circular-toolbar">
+          <button type="button" id="orgNewSearchBtn"><svg class="btn-ic"><use href="#ic-search"></use></svg> بحث جديد</button>
+          <button type="button" id="orgBackBtn"><svg class="btn-ic"><use href="#ic-arrow-left"></use></svg> رجوع</button>
+          <label class="hide-female-toggle"><input type="checkbox" id="orgHideFemaleChk"> <svg class="btn-ic"><use href="#ic-eye-off"></use></svg> إخفاء الإناث</label>
+        </div>
+        <div class="org-scroll-area">
+          <div class="org-chart-canvas" id="orgChartCanvas">
+            <svg class="org-lines" id="orgLinesSvg"></svg>
+          </div>
+          <p class="circ-caption" id="orgCaption"></p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="arabic-toast" id="arabicOnlyToast">الأسماء يجب أن تكتب باللغة العربية</div>
@@ -655,6 +774,11 @@
         resetRelativesForm();
         showRelativesSearchForm();
       }
+      // same idea for فرعي — always a fresh 5-name entry form
+      if(choice === 'org'){
+        resetOrgForm();
+        showOrgSearchForm();
+      }
     });
   });
   // (On a phone the header/pills/toolbar/hint staying in place while only
@@ -679,6 +803,14 @@
   const CIRC_MAX_OUTER = 308; // outer edge radius the rings must fit inside, in viewBox units
   const CIRC_LABEL_FONT_SIZE = 2.5; // kept in sync with the .circ-label font-size in <style>
   let hideFemales = false;
+
+  // ================= فرعي (org-chart) view =================
+  // same رجوع-history-stack pattern as circCenterNode/circHistory above —
+  // every box click re-centers the WHOLE chart on the clicked person
+  // (always showing exactly 3 levels: them, their children, their
+  // grandchildren), pushing the node being left so رجوع retraces it
+  let orgCenterNode = null;
+  let orgHistory = [];
   // شجرة الصالح (list) page's own رجوع — mirrors the أقربائي page's history
   // stack, but undoes a search-result "reveal" (which force-opens whatever
   // collapsed ancestors stand between the root and the found person, then
@@ -714,6 +846,10 @@
   const circSvgEl = document.getElementById('circSvg');
   const circCaptionEl = document.getElementById('circCaption');
   const circBackBtn = document.getElementById('circBackBtn');
+
+  const orgChartCanvasEl = document.getElementById('orgChartCanvas');
+  const orgCaptionEl = document.getElementById('orgCaption');
+  const orgBackBtn = document.getElementById('orgBackBtn');
 
   // ---- pinch / wheel zoom + drag pan for the circular chart only ----
   const circZoomWrapEl = document.getElementById('circZoomWrap');
@@ -859,6 +995,28 @@
     circHighlightNode = null;
   }
 
+  // ---- فرعي page: same toggle pattern as أقربائي's, above ----
+  const orgSearchPanelEl = document.getElementById('orgSearchPanel');
+  const orgChartPanelEl = document.getElementById('orgChartPanel');
+  function showOrgSearchForm(){
+    orgSearchPanelEl.style.display = 'block';
+    orgChartPanelEl.style.display = 'none';
+  }
+  function showOrgChart(){
+    orgSearchPanelEl.style.display = 'none';
+    orgChartPanelEl.style.display = 'block';
+  }
+  function resetOrgForm(){
+    ['orgName','orgFather','orgGrandfather','orgGGFather','orgBranch'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.value = '';
+    });
+    const orgResultsBox = document.getElementById('orgResults');
+    if(orgResultsBox){ orgResultsBox.innerHTML = ''; orgResultsBox.style.display = 'none'; }
+    orgCenterNode = null;
+    orgHistory = [];
+  }
+
   // ---- "names must be Arabic" enforcement, on every name field across both
   // pages. Any Latin letter typed is stripped right back out and a toast
   // pops up to explain why, instead of silently accepting it (the search
@@ -892,7 +1050,8 @@
   }
   [
     'searchName','searchFather','searchGrandfather','searchGGFather','searchBranch',
-    'relName','relFather','relGrandfather','relGGFather','relBranch'
+    'relName','relFather','relGrandfather','relGGFather','relBranch',
+    'orgName','orgFather','orgGrandfather','orgGGFather','orgBranch'
   ].forEach(id => enforceArabicOnly(document.getElementById(id)));
 
   function polarPoint(cx, cy, r, angle){
@@ -1207,6 +1366,143 @@
   }
   circBackBtn.addEventListener('click', circGoBack);
 
+  // ================= فرعي (org-chart) rendering =================
+  // Women are always leaves in this dataset (_total===1), so only sons can
+  // ever have their own children — that's why only each child's OWN
+  // children need to be walked one level to lay out the grandchildren row;
+  // there is never a 4th generation to worry about here.
+  function orgVisibleChildren(n){
+    return hideFemales ? n._children.filter(c => c.gender !== 'female') : n._children;
+  }
+
+  const ORG_BOX_W = 128, ORG_BOX_H = 56, ORG_GAP_X = 14, ORG_ROW_GAP = 64;
+
+  // a child's own "slot" must be at least as wide as its grandchildren row
+  // beneath it, or those grandchildren would overlap the next uncle's slot
+  function orgChildSlotWidth(child){
+    const gk = orgVisibleChildren(child);
+    if(!gk.length) return ORG_BOX_W;
+    const gkWidth = gk.length * ORG_BOX_W + (gk.length - 1) * ORG_GAP_X;
+    return Math.max(ORG_BOX_W, gkWidth);
+  }
+
+  function renderOrgChart(){
+    if(!orgCenterNode) return;
+    const root = orgCenterNode;
+    const children = orgVisibleChildren(root);
+    const slotWidths = children.map(orgChildSlotWidth);
+    const rowWidth = children.length
+      ? slotWidths.reduce((a,b) => a + b, 0) + ORG_GAP_X * (children.length - 1)
+      : ORG_BOX_W;
+    const canvasWidth = Math.max(ORG_BOX_W, rowWidth);
+    const hasGrandchildren = children.some(c => orgVisibleChildren(c).length > 0);
+    const rootY = 0;
+    const childY = ORG_BOX_H + ORG_ROW_GAP;
+    const gkY = childY + ORG_BOX_H + ORG_ROW_GAP;
+    const canvasHeight = ORG_BOX_H + ORG_ROW_GAP + ORG_BOX_H + (hasGrandchildren ? ORG_ROW_GAP + ORG_BOX_H : 0);
+
+    orgChartCanvasEl.style.width = canvasWidth + 'px';
+    orgChartCanvasEl.style.height = canvasHeight + 'px';
+    orgChartCanvasEl.innerHTML = '';
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const linesSvg = document.createElementNS(svgNS, 'svg');
+    linesSvg.setAttribute('class', 'org-lines');
+    linesSvg.setAttribute('width', canvasWidth);
+    linesSvg.setAttribute('height', canvasHeight);
+    orgChartCanvasEl.appendChild(linesSvg);
+
+    function addLine(x1, y1, x2, y2){
+      const midY = (y1 + y2) / 2;
+      const path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('class', 'org-line');
+      path.setAttribute('d', `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`);
+      linesSvg.appendChild(path);
+    }
+
+    function addBox(node, x, y, isRoot, level){
+      const box = document.createElement('div');
+      box.className = 'org-box' + (isRoot ? ' org-box-root' : (node.gender === 'female' ? ' female' : ' male'));
+      box.setAttribute('data-level', level); // 0=centered root, 1=children, 2=grandchildren
+      box.style.left = x + 'px';
+      box.style.top = y + 'px';
+      box.style.width = ORG_BOX_W + 'px';
+      box.style.height = ORG_BOX_H + 'px';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'org-box-name';
+      nameSpan.textContent = node.name;
+      box.appendChild(nameSpan);
+      if(node._children.length){
+        const countSpan = document.createElement('span');
+        countSpan.className = 'org-box-count';
+        countSpan.textContent = `(${node._total} فرد)`;
+        box.appendChild(countSpan);
+      }
+      // the already-centered root box is a no-op when pressed — going back
+      // happens only via رجوع, same rule as أقربائي's center circle
+      if(!isRoot){
+        box.addEventListener('click', () => centerOrgOn(node));
+      }
+      orgChartCanvasEl.appendChild(box);
+      return { centerX: x + ORG_BOX_W / 2, bottomY: y + ORG_BOX_H, topY: y };
+    }
+
+    const rootX = canvasWidth / 2 - ORG_BOX_W / 2;
+    const rootInfo = addBox(root, rootX, rootY, true, 0);
+
+    let cursor = (canvasWidth - rowWidth) / 2;
+    let maleCount = root.gender === 'female' ? 0 : 1;
+    let femaleCount = root.gender === 'female' ? 1 : 0;
+    const deepestRendered = children.length ? (hasGrandchildren ? 3 : 2) : 1;
+
+    children.forEach((child, i) => {
+      const slotW = slotWidths[i];
+      const childX = cursor + slotW / 2 - ORG_BOX_W / 2;
+      const childInfo = addBox(child, childX, childY, false, 1);
+      addLine(rootInfo.centerX, rootInfo.bottomY, childInfo.centerX, childInfo.topY);
+      if(child.gender === 'female') femaleCount++; else maleCount++;
+
+      const gk = orgVisibleChildren(child);
+      if(gk.length){
+        const gkWidth = gk.length * ORG_BOX_W + (gk.length - 1) * ORG_GAP_X;
+        let gkCursor = cursor + slotW / 2 - gkWidth / 2;
+        gk.forEach(grandkid => {
+          const gkInfo = addBox(grandkid, gkCursor, gkY, false, 2);
+          addLine(childInfo.centerX, childInfo.bottomY, gkInfo.centerX, gkInfo.topY);
+          if(grandkid.gender === 'female') femaleCount++; else maleCount++;
+          gkCursor += ORG_BOX_W + ORG_GAP_X;
+        });
+      }
+      cursor += slotW + ORG_GAP_X;
+    });
+
+    orgCaptionEl.textContent = `${deepestRendered} أجيال ظاهرة   ${maleCount} ذكور   ${femaleCount} إناث`;
+  }
+
+  function updateOrgBackBtn(){
+    orgBackBtn.disabled = orgHistory.length === 0;
+  }
+  // resetHistory=true marks a fresh starting point (a brand-new فرعي
+  // search result) — رجوع has nothing to retrace past that point. Any
+  // other centering (clicking a box) pushes the node being left so رجوع
+  // can step back through it, in whatever order it was actually visited.
+  function centerOrgOn(node, resetHistory){
+    if(resetHistory){
+      orgHistory = [];
+    } else if(orgCenterNode){
+      orgHistory.push(orgCenterNode);
+    }
+    orgCenterNode = node;
+    renderOrgChart();
+    updateOrgBackBtn();
+  }
+  function orgGoBack(){
+    if(!orgHistory.length) return;
+    orgCenterNode = orgHistory.pop();
+    renderOrgChart();
+    updateOrgBackBtn();
+  }
+  orgBackBtn.addEventListener('click', orgGoBack);
+
   function augment(node, depth, parent){
     node._depth = depth;
     node._parent = parent;
@@ -1360,12 +1656,21 @@
     listHistory = [];
     updateListBackBtn();
   };
+  // all three pages' hide-females checkboxes stay in sync with each other
+  // and with the one shared `hideFemales` flag
+  function syncHideFemaleCheckboxes(checked, exceptId){
+    ['hideFemaleChk','circHideFemaleChk','orgHideFemaleChk'].forEach(id => {
+      if(id === exceptId) return;
+      const el = document.getElementById(id);
+      if(el) el.checked = checked;
+    });
+  }
   document.getElementById('hideFemaleChk').addEventListener('change', (e) => {
     document.body.classList.toggle('hide-female', e.target.checked);
     hideFemales = e.target.checked;
-    const circChk = document.getElementById('circHideFemaleChk');
-    if(circChk) circChk.checked = e.target.checked;
+    syncHideFemaleCheckboxes(e.target.checked, 'hideFemaleChk');
     if(circCenterNode) renderCircular();
+    if(orgCenterNode) renderOrgChart();
   });
 
   // ---- أقربائي page's own hide-females toggle, independent of the list
@@ -1373,13 +1678,26 @@
   document.getElementById('circHideFemaleChk').addEventListener('change', (e) => {
     document.body.classList.toggle('hide-female', e.target.checked);
     hideFemales = e.target.checked;
-    const sideChk = document.getElementById('hideFemaleChk');
-    if(sideChk) sideChk.checked = e.target.checked;
+    syncHideFemaleCheckboxes(e.target.checked, 'circHideFemaleChk');
     if(circCenterNode) renderCircular();
+    if(orgCenterNode) renderOrgChart();
   });
   document.getElementById('relNewSearchBtn').addEventListener('click', () => {
     resetRelativesForm();
     showRelativesSearchForm();
+  });
+
+  // ---- فرعي page's own hide-females toggle ----
+  document.getElementById('orgHideFemaleChk').addEventListener('change', (e) => {
+    document.body.classList.toggle('hide-female', e.target.checked);
+    hideFemales = e.target.checked;
+    syncHideFemaleCheckboxes(e.target.checked, 'orgHideFemaleChk');
+    if(circCenterNode) renderCircular();
+    if(orgCenterNode) renderOrgChart();
+  });
+  document.getElementById('orgNewSearchBtn').addEventListener('click', () => {
+    resetOrgForm();
+    showOrgSearchForm();
   });
 
   // ---- search (Arabic-aware normalization + cascading suggestions) ----
@@ -1778,6 +2096,100 @@
   ].forEach(inp => inp.addEventListener('keydown', e => { if(e.key === 'Enter') runRelativesSearch(); }));
   document.addEventListener('click', (e) => {
     if(!e.target.closest('.relatives-search-panel .search-panel-wrap')) relResultsBox.style.display = 'none';
+  });
+
+  // ---- فرعي page: a separate 5-mandatory-field search that resolves a
+  // single person, then opens the org-chart diagram centered DIRECTLY on
+  // that person (not on an ancestor, unlike أقربائي's openRelativesTreeFor
+  // above) — showing them together with their children and grandchildren ----
+  function orgCurrentFields(){
+    return {
+      name: fieldTerm('orgName'),
+      father: fieldTerm('orgFather'),
+      grandfather: fieldTerm('orgGrandfather'),
+      ggf: fieldTerm('orgGGFather'),
+      branch: fieldTerm('orgBranch')
+    };
+  }
+  function orgRefreshFatherOptions(){
+    const f = orgCurrentFields();
+    setFieldOptions('orgFather', filterCandidates({ name: f.name }).map(n => ancestorChain(n)[1]));
+  }
+  function orgRefreshGrandfatherOptions(){
+    const f = orgCurrentFields();
+    setFieldOptions('orgGrandfather', filterCandidates({ name: f.name, father: f.father }).map(n => ancestorChain(n)[2]));
+  }
+  function orgRefreshGgfOptions(){
+    const f = orgCurrentFields();
+    setFieldOptions('orgGgf', filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather }).map(n => ancestorChain(n)[3]));
+  }
+  function orgRefreshBranchOptions(){
+    const f = orgCurrentFields();
+    setFieldOptions('orgBranch', filterCandidates({ name: f.name, father: f.father, grandfather: f.grandfather, ggf: f.ggf }).map(n => n._branchName));
+  }
+  setFieldOptions('orgName', allNodes.map(n => n.name));
+  orgRefreshFatherOptions();
+  orgRefreshGrandfatherOptions();
+  orgRefreshGgfOptions();
+  orgRefreshBranchOptions();
+
+  wireSuggestBox(document.getElementById('orgName'), document.getElementById('orgNameSuggestBox'), 'orgName');
+  wireSuggestBox(document.getElementById('orgFather'), document.getElementById('orgFatherSuggestBox'), 'orgFather');
+  wireSuggestBox(document.getElementById('orgGrandfather'), document.getElementById('orgGrandfatherSuggestBox'), 'orgGrandfather');
+  wireSuggestBox(document.getElementById('orgGGFather'), document.getElementById('orgGgfatherSuggestBox'), 'orgGgf');
+  wireSuggestBox(document.getElementById('orgBranch'), document.getElementById('orgBranchSuggestBox'), 'orgBranch');
+
+  document.getElementById('orgName').addEventListener('input', orgRefreshFatherOptions);
+  document.getElementById('orgFather').addEventListener('input', orgRefreshGrandfatherOptions);
+  document.getElementById('orgGrandfather').addEventListener('input', orgRefreshGgfOptions);
+  document.getElementById('orgGGFather').addEventListener('input', orgRefreshBranchOptions);
+
+  function openOrgChartFor(matchNode){
+    showOrgChart();
+    centerOrgOn(matchNode, true); // fresh starting point — nothing to رجوع to yet
+  }
+  const orgResultsBox = document.getElementById('orgResults');
+  function runOrgSearch(){
+    const fields = orgCurrentFields();
+    if(!fields.name || !fields.father || !fields.grandfather || !fields.ggf || !fields.branch){
+      orgResultsBox.innerHTML = '<div class="error">الأسماء الخمسة جميعها مطلوبة — الاسم، الأب، الجد، الجد الأكبر، والفرع الرئيسي</div>';
+      orgResultsBox.style.display = 'block';
+      return;
+    }
+    const matches = search(fields);
+    if(matches.length === 1){
+      orgResultsBox.style.display = 'none';
+      openOrgChartFor(matches[0]);
+      return;
+    }
+    if(!matches.length){
+      orgResultsBox.innerHTML = '<div class="error">لم يتم العثور على نتيجة مطابقة — تأكد من الأسماء الخمسة</div>';
+      orgResultsBox.style.display = 'block';
+      return;
+    }
+    orgResultsBox.innerHTML = matches.map((n,i) => {
+      const path = ancestorChain(n).join(' ← ');
+      return `<div data-i="${i}">${n.name}<div class="path">${path}</div></div>`;
+    }).join('');
+    orgResultsBox.style.display = 'block';
+    orgResultsBox.querySelectorAll('div[data-i]').forEach(elm => {
+      elm.addEventListener('click', () => {
+        const idx = +elm.getAttribute('data-i');
+        orgResultsBox.style.display = 'none';
+        openOrgChartFor(matches[idx]);
+      });
+    });
+  }
+  document.getElementById('orgSearchBtn').addEventListener('click', runOrgSearch);
+  [
+    document.getElementById('orgName'),
+    document.getElementById('orgFather'),
+    document.getElementById('orgGrandfather'),
+    document.getElementById('orgGGFather'),
+    document.getElementById('orgBranch')
+  ].forEach(inp => inp.addEventListener('keydown', e => { if(e.key === 'Enter') runOrgSearch(); }));
+  document.addEventListener('click', (e) => {
+    if(!e.target.closest('#orgSearchPanel .search-panel-wrap')) orgResultsBox.style.display = 'none';
   });
 
   } // end boot()
