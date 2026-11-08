@@ -398,6 +398,16 @@
       display:flex; flex-direction:column; padding:10px 12px 0;
     }
     .site-header, .theme-switcher{ flex:0 0 auto; }
+    /* Each generation indents its .children by 30px (15+15) on the
+       desktop-sized modern theme -- fine with hundreds of pixels to spare,
+       but توسيع الكل can run a branch 13 generations deep, and at 30px/
+       level that alone eats 300px-plus of a phone's ~340px-wide tree pane,
+       squeezing a deep row's own avatar+name into a sliver too narrow to
+       read (reported: a بحث search match that deep rendered with its name
+       cut off and no way to see it). Shrinking the per-level indent on
+       mobile only keeps nesting visible without starving deep rows of the
+       room their own content actually needs. */
+    html[data-theme="modern"] .children{ margin-inline-start:7px; padding-inline-start:7px; }
     /* .tree-viewport's base rule sets align-items:flex-start for its
        DESKTOP row layout (so the two unequal-height panels don't stretch
        to match each other) -- on mobile it's a column instead, where
@@ -418,17 +428,24 @@
        put; only the tree rows (#treeViewport) scroll */
     .tree-content{ display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; }
     .controls, #listSearchPanelWrap, .tree-content > .list-hint{ flex:0 0 auto; }
-    /* overflow-x:hidden (+min-width:0) alongside overflow-y:auto on every
-       one of these -- without it, a browser treats a plain overflow-y:auto
-       flex item as overflow-x:auto too AND lets its default min-width:auto
-       grow to fit a deeply-expanded row (توسيع الكل can run 13 generations
-       deep) that's a bit wider than the screen, widening this whole pane
-       (and everything stacked above it, including the "fixed" toolbar) --
-       re-introducing exactly the sideways-drag bug html{overflow-x:hidden}
-       already fixed for the page as a whole (see that rule's own comment,
-       above), just shifted so a phone's narrower screen shows it. */
+    /* min-width:0 alongside overflow-y:auto is what keeps THIS PANE itself
+       from growing wider than the screen when a deeply-expanded row
+       (توسيع الكل can run 13 generations deep) is a bit wider than
+       available -- without it, a flex item's default min-width:auto would
+       let that wide row grow #treeViewport (and everything stacked above
+       it, including the "fixed" toolbar) past the viewport, re-introducing
+       exactly the sideways-drag bug html{overflow-x:hidden} already fixed
+       for the page as a whole (see that rule's own comment, above).
+
+       overflow-x is deliberately auto, not hidden, here: at very deep
+       generations (this is where a بحث reveal/رجوع jumps to) the per-level
+       indentation can eat almost all the available width, leaving too
+       little room for even the row's own avatar + name -- auto lets a
+       phone swipe sideways within this one pane (never the whole page) to
+       reach the rest of a row like that, instead of it being impossible
+       to read at all. */
     #treeViewport{
-      flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden;
+      flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:auto;
       -webkit-overflow-scrolling:touch; padding-bottom:24px;
     }
 
