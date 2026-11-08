@@ -389,8 +389,12 @@
   .org-line{ fill:none; stroke:var(--line); stroke-width:2; }
   .org-box{
     position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:1px; border-radius:var(--radius-sm); border:1.5px solid var(--line); background:#fff;
-    box-shadow:var(--shadow-sm); cursor:pointer; padding:2px 4px; box-sizing:border-box;
+    gap:2px; border-radius:var(--radius-sm); border:1.5px solid var(--line); background:#fff;
+    box-shadow:var(--shadow-sm); cursor:pointer; padding:3px 4px; box-sizing:border-box;
+    overflow:hidden; /* a name+count box that's a touch taller than its box
+      (a real webfont's line-height can run taller than the sandbox/Tahoma
+      fallback this was tuned against) clips cleanly instead of the name
+      silently vanishing behind the next box drawn on top of it */
     transition:box-shadow .15s ease, transform .15s ease;
   }
   .org-box:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
@@ -1382,7 +1386,7 @@
     return hideFemales ? n._children.filter(c => c.gender !== 'female') : n._children;
   }
 
-  const ORG_BOX_W = 64, ORG_BOX_H = 28, ORG_GAP_X = 8, ORG_ROW_GAP = 36;
+  const ORG_BOX_W = 64, ORG_BOX_H = 40, ORG_GAP_X = 8, ORG_ROW_GAP = 36;
 
   // a child's own "slot" must be at least as wide as its grandchildren row
   // beneath it, or those grandchildren would overlap the next uncle's slot
