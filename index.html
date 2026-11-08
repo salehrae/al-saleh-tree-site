@@ -305,13 +305,13 @@
   }
   .relatives-search-panel{ max-width:420px; margin:14px auto 0; text-align:right; }
   .relatives-search-panel .rel-intro{ color:var(--ink-soft); font-size:.9em; margin:0 0 12px; text-align:center; }
-  #relSearchBtn{
+  #relSearchBtn, #orgSearchBtn{
     display:flex; align-items:center; justify-content:center; gap:8px; font-family:inherit; font-weight:800;
     font-size:.92em; cursor:pointer; background:var(--gold-gradient); color:#fff; border:none;
     padding:10px 14px; border-radius:var(--radius-md); box-shadow:var(--shadow-sm);
     transition:box-shadow .15s ease, transform .15s ease;
   }
-  #relSearchBtn:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  #relSearchBtn:hover, #orgSearchBtn:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
   .circular-chart-panel{ display:none; }
   .circular-toolbar{
     display:flex; align-items:center; justify-content:center; gap:10px;
@@ -389,8 +389,8 @@
   .org-line{ fill:none; stroke:var(--line); stroke-width:2; }
   .org-box{
     position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:3px; border-radius:var(--radius-md); border:1.5px solid var(--line); background:#fff;
-    box-shadow:var(--shadow-sm); cursor:pointer; padding:4px 8px; box-sizing:border-box;
+    gap:1px; border-radius:var(--radius-sm); border:1.5px solid var(--line); background:#fff;
+    box-shadow:var(--shadow-sm); cursor:pointer; padding:2px 4px; box-sizing:border-box;
     transition:box-shadow .15s ease, transform .15s ease;
   }
   .org-box:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
@@ -400,14 +400,21 @@
   .org-box-root{ cursor:default; background:var(--gold-gradient); border-color:transparent; }
   .org-box-root:hover{ box-shadow:var(--shadow-sm); transform:none; }
   .org-box-name{
-    font-weight:800; font-size:.86em; color:var(--maroon); line-height:1.2;
+    font-weight:800; font-size:.62em; color:var(--maroon); line-height:1.15;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
   }
-  .org-box.male .org-box-name{ color:var(--male); }
-  .org-box.female .org-box-name{ color:var(--female); }
+  /* male boxes: solid blue background, white text -- female boxes: dark
+     pink background, white text -- distinct from the plain name-color
+     coding used elsewhere on the site (list rows, أقربائي's wedges) */
+  .org-box.male{ background:#2f6fa8; border-color:transparent; }
+  .org-box.female{ background:#ad1457; border-color:transparent; }
+  .org-box.male .org-box-name,
+  .org-box.female .org-box-name,
   .org-box-root .org-box-name{ color:#fff; }
-  .org-box-count{ font-size:.72em; color:var(--ink-soft); font-weight:700; }
-  .org-box-root .org-box-count{ color:#eaf6f0; }
+  .org-box-count{ font-size:.5em; color:var(--ink-soft); font-weight:700; }
+  .org-box.male .org-box-count,
+  .org-box.female .org-box-count,
+  .org-box-root .org-box-count{ color:rgba(255,255,255,.85); }
 
   /* ================= "Arabic names only" warning toast ================= */
   /* Pinned near the TOP of the screen, not the bottom — on a phone, typing
@@ -713,7 +720,7 @@
               <input id="orgBranch" type="text" placeholder="مطلوب" autocomplete="off">
               <div class="suggest-box" id="orgBranchSuggestBox"></div>
             </div>
-            <button id="orgSearchBtn" type="button"><svg class="btn-ic"><use href="#ic-search"></use></svg> عرض المخطط</button>
+            <button id="orgSearchBtn" type="button"><svg class="btn-ic"><use href="#ic-search"></use></svg> عرض فرعي</button>
             <div id="orgResults"></div>
           </div>
         </div>
@@ -1375,7 +1382,7 @@
     return hideFemales ? n._children.filter(c => c.gender !== 'female') : n._children;
   }
 
-  const ORG_BOX_W = 128, ORG_BOX_H = 56, ORG_GAP_X = 14, ORG_ROW_GAP = 64;
+  const ORG_BOX_W = 64, ORG_BOX_H = 28, ORG_GAP_X = 8, ORG_ROW_GAP = 36;
 
   // a child's own "slot" must be at least as wide as its grandchildren row
   // beneath it, or those grandchildren would overlap the next uncle's slot
