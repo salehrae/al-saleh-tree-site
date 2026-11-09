@@ -350,14 +350,25 @@
   .circular-toolbar .hide-female-toggle:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
   .circular-toolbar .hide-female-toggle input{ accent-color:#fff; }
   .circ-zoom-wrap{
-    /* was capped at 560px -- with the wider desktop column above, that left
-       the actual chart looking just as small as before, surrounded by more
-       blank white card instead of blank green page. 960px lets it actually
-       grow into the extra room (org's JS-computed fit-scale picks this up
-       automatically from the wrap's live size; circular's SVG, still
-       width-driven on desktop, simply renders as a bigger square). */
-    width:100%; max-width:960px; margin:10px auto 0; overflow:hidden;
-    border-radius:12px; touch-action:none; cursor:grab;
+    /* was capped at 560px, then 960px -- still left visibly unused white
+       card around the chart on a wide desktop window ("this area is lost
+       why not used"). Filling the card's own width entirely (org's
+       JS-computed fit-scale, and circular's width-driven square, both pick
+       this up automatically from the wrap's live size) is the only way to
+       actually stop leaving a gap, short of hand-picking a cap that still
+       wouldn't suit every window size. */
+    width:100%; max-width:none; margin:10px auto 0; overflow:hidden;
+    border-radius:12px; cursor:grab;
+    /* pan-y (not none) is the default: a single-finger drag over a chart
+       that isn't zoomed in has nothing useful to pan to (clampCircPan/
+       clampOrgPan just snap it straight back), so there's no reason to
+       swallow that gesture -- letting it fall through to native vertical
+       scroll is what lets the page scroll normally when touched over the
+       chart. JS flips this to 'none' only while actually zoomed in enough
+       that a drag would do something, via updateCircTouchAction/
+       updateOrgTouchAction. (Two-finger pinch is unaffected either way --
+       pan-y doesn't claim it, so our own pinch handler still gets it.) */
+    touch-action:pan-y;
   }
   .circ-zoom-wrap.dragging{ cursor:grabbing; }
   /* height:100% here is a deliberate no-op on desktop: .circ-zoom-wrap has no
@@ -371,7 +382,7 @@
      whichever of width/height is the tighter fit -- so the chart grows to
      fill the taller space phones actually have available, instead of being
      capped at whatever height its width alone implied. */
-  #circSvg{ width:100%; height:100%; display:block; touch-action:none; transform-origin:0 0; }
+  #circSvg{ width:100%; height:100%; display:block; touch-action:pan-y; transform-origin:0 0; }
   .circ-zoom-hint{ color:#7a8d82; font-size:.78em; margin:8px 0 0; }
   .circ-arc{ cursor:pointer; stroke:#fff; stroke-width:.4; }
   .circ-arc.male{ fill:#bcd9ef; }
@@ -964,6 +975,16 @@
     circZoomX = Math.min(0, Math.max(w - contentW, circZoomX));
     circZoomY = Math.min(0, Math.max(h - contentH, circZoomY));
   }
+  // see the touch-action:pan-y comment on .circ-zoom-wrap above -- this is
+  // what flips it to 'none' once there's actually something to pan (so a
+  // one-finger drag pans the chart instead of scrolling the page), and back
+  // to 'pan-y' once reset, so the page can scroll normally through the
+  // chart again instead of the gesture being trapped by an always-on 'none'.
+  function updateCircTouchAction(){
+    const action = circZoomScale > 1 ? 'none' : 'pan-y';
+    circZoomWrapEl.style.touchAction = action;
+    circSvgEl.style.touchAction = action;
+  }
   function circZoomAt(px, py, factor){
     const newScale = Math.min(CIRC_ZOOM_MAX, Math.max(CIRC_ZOOM_MIN, circZoomScale * factor));
     if(newScale === circZoomScale) return;
@@ -972,10 +993,12 @@
     circZoomScale = newScale;
     clampCircPan();
     applyCircZoomTransform();
+    updateCircTouchAction();
   }
   function resetCircZoom(){
     circZoomScale = 1; circZoomX = 0; circZoomY = 0;
     applyCircZoomTransform();
+    updateCircTouchAction();
   }
 
   // mouse wheel (desktop): zoom in/out centered on the cursor
@@ -1479,7 +1502,7 @@
   const orgZoomResetBtn = document.getElementById('orgZoomResetBtn');
   let orgZoomScale = 1, orgZoomX = 0, orgZoomY = 0;
   let orgCanvasW = 0, orgCanvasH = 0; // the canvas's own natural (unscaled) size, set by renderOrgChart
-  const ORG_ZOOM_FLOOR = 0.2, ORG_ZOOM_MAX = 3;
+  const ORG_ZOOM_FLOOR = 0.2, ORG_ZOOM_MAX = 5;
 
   function applyOrgZoomTransform(){
     orgChartCanvasEl.style.transform = `translate(${orgZoomX}px, ${orgZoomY}px) scale(${orgZoomScale})`;
@@ -1494,6 +1517,19 @@
     orgZoomX = (contentW <= w) ? (w - contentW) / 2 : Math.min(0, Math.max(w - contentW, orgZoomX));
     orgZoomY = (contentH <= h) ? (h - contentH) / 2 : Math.min(0, Math.max(h - contentH, orgZoomY));
   }
+  // see the touch-action:pan-y comment on .circ-zoom-wrap, shared by this
+  // element too -- org's single-finger pan is always technically "on"
+  // (clampOrgPan snaps it back when there's nothing to pan), so this checks
+  // the same thing clampOrgPan does: does the content actually exceed the
+  // wrap in either dimension at the current scale? If not, a drag wouldn't
+  // move anything, so there's no reason to trap the gesture from also
+  // scrolling the page.
+  function updateOrgTouchAction(){
+    const rect = orgZoomWrapEl.getBoundingClientRect();
+    const contentW = orgCanvasW * orgZoomScale, contentH = orgCanvasH * orgZoomScale;
+    const pannable = contentW > rect.width + 1 || contentH > rect.height + 1;
+    orgZoomWrapEl.style.touchAction = pannable ? 'none' : 'pan-y';
+  }
   function orgZoomAt(px, py, factor){
     const newScale = Math.min(ORG_ZOOM_MAX, Math.max(ORG_ZOOM_FLOOR, orgZoomScale * factor));
     if(newScale === orgZoomScale) return;
@@ -1502,21 +1538,27 @@
     orgZoomScale = newScale;
     clampOrgPan();
     applyOrgZoomTransform();
+    updateOrgTouchAction();
   }
   // the scale that frames the ENTIRE current chart inside the wrap -- capped
   // so a single small box (e.g. someone with no children at all) doesn't
-  // get blown up to fill the whole wrap by default
+  // get blown up to fill the whole wrap by default. Raised from the
+  // original 1.5x now that the wrap itself can be much wider on desktop
+  // (no more 560/960px cap) -- without a higher ceiling here, a small
+  // family's chart would still have looked just as small, now surrounded by
+  // even more unused white space instead of less.
   function computeOrgFitScale(){
     const rect = orgZoomWrapEl.getBoundingClientRect();
     if(!rect.width || !rect.height || !orgCanvasW || !orgCanvasH) return 1;
     const fit = Math.min(rect.width / orgCanvasW, rect.height / orgCanvasH);
-    return Math.min(1.5, Math.max(ORG_ZOOM_FLOOR, fit));
+    return Math.min(3, Math.max(ORG_ZOOM_FLOOR, fit));
   }
   function resetOrgZoom(){
     orgZoomScale = computeOrgFitScale();
     orgZoomX = 0; orgZoomY = 0;
     clampOrgPan();
     applyOrgZoomTransform();
+    updateOrgTouchAction();
   }
 
   orgZoomWrapEl.addEventListener('wheel', (e) => {
