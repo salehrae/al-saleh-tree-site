@@ -358,6 +358,29 @@
        actually stop leaving a gap, short of hand-picking a cap that still
        wouldn't suit every window size. */
     width:100%; max-width:none; margin:10px auto 0; overflow:hidden;
+    /* ...but أقربائي's chart is always a perfect square (width-driven, see
+       #circSvg below), so on a WIDE-but-not-very-TALL desktop window,
+       filling the full card width alone made it render taller than the
+       screen itself -- reported as "opens bigger than the screen", and
+       since the chart's own wedges (including an all-daughters wedge,
+       reported separately as "not shown") can end up scrolled below the
+       fold once that happens, both reports were really the one bug. Capping
+       height too (never under 400px, so it doesn't shrink unreasonably on a
+       short window either) lets #circSvg's preserveAspectRatio pick
+       whichever of width/height is actually the tighter fit, exactly like
+       it already does for فرعي's canvas. */
+    /* a max-height alone doesn't actually work here: with no height of its
+       own, this box's height is 'auto' (driven by its content, the SVG),
+       and an 'auto' ancestor height is exactly the case where a percentage
+       height on the SVG child falls back to width-driven sizing (CSS2.1
+       10.5) REGARDLESS of any max-height clamp on the ancestor -- the SVG
+       would still lay itself out at the full, oversized width-driven
+       square, just get its overflow silently clipped afterwards instead of
+       actually shrinking. Giving the wrap a genuinely DEFINITE height
+       (not auto, not a clamp) is what lets the SVG's height:100% resolve
+       against a real number, so preserveAspectRatio can pick whichever of
+       width/height is actually tighter and shrink the square to fit. */
+    height:max(400px, calc(100vh - 320px));
     border-radius:12px; cursor:grab;
     /* pan-y (not none) is the default: a single-finger drag over a chart
        that isn't zoomed in has nothing useful to pan to (clampCircPan/
@@ -633,7 +656,13 @@
          vertical room left after the fixed toolbar/hint/caption) -- past
          that floor, .circ-scroll-area's own overflow-y:auto (set above)
          takes over and lets the user scroll to it instead. */
-      flex:1 1 auto; min-height:240px; min-width:0; max-width:none;
+      /* height:auto (not max-height:none) overrides the desktop vh-based
+         fixed height above -- mobile sizes this wrap through the flex
+         app-shell itself (flex-grow filling whatever .circ-scroll-area
+         leaves it), and 100vh's own "address bar" wobble makes a vh-based
+         formula less reliable here anyway, so this resets back to letting
+         flex (not a fixed height) drive it, same as before. */
+      flex:1 1 auto; min-height:240px; min-width:0; max-width:none; height:auto;
     }
     .circ-zoom-hint, .circ-caption{ flex:0 0 auto; }
 
@@ -1178,6 +1207,19 @@
     return { x: cx + r * Math.sin(angle), y: cy - r * Math.cos(angle) };
   }
   function arcPath(cx, cy, r0, r1, a0, a1){
+    // SVG's elliptical-arc command can't express a full 360° sweep in one
+    // arc segment -- its start and end points would be mathematically
+    // identical, which the spec says collapses to a zero-length (invisible)
+    // arc. That hits any node whose only visible child, or whose daughters
+    // all got merged into one group (addDaughterGroup), ends up with the
+    // ENTIRE circle to itself -- reported as a person with only-daughter
+    // children opening to a blank circle with no wedge and no names at all.
+    // Splitting a full sweep into two half-circle subpaths sidesteps the
+    // degenerate single-arc case; the two halves fill as one seamless ring.
+    if(a1 - a0 >= 2 * Math.PI - 1e-6){
+      const aMid = a0 + Math.PI;
+      return arcPath(cx, cy, r0, r1, a0, aMid) + ' ' + arcPath(cx, cy, r0, r1, aMid, a1);
+    }
     const p0 = polarPoint(cx, cy, r0, a0);
     const p1 = polarPoint(cx, cy, r1, a0);
     const p2 = polarPoint(cx, cy, r1, a1);
