@@ -379,18 +379,35 @@
     background:#fff; border:1.5px solid var(--line); border-radius:var(--radius-lg);
     box-shadow:var(--shadow-lg);
   }
-  /* unlike .circ-scroll-area (overflow-x:hidden -- أقربائي's chart always
-     fits its own fixed square, with its own pinch/pan/zoom), a wide family
-     here can run past the screen on either axis, so this just scrolls
-     natively on both axes -- no custom touch/gesture system */
-  .org-scroll-area{ width:100%; overflow:auto; padding:6px 2px 20px; }
-  .org-chart-canvas{ position:relative; margin:10px auto 0; }
+  /* the chart canvas itself reuses أقربائي's .circ-zoom-wrap/.circ-scroll-area
+     classes outright for the pinch/wheel-zoom + drag-pan mechanics (an
+     #orgZoomWrap element carries BOTH classes) -- .org-zoom-wrap below only
+     adds what's genuinely different: an explicit height, since (unlike the
+     circular chart, which is always a fixed square SVG that sizes the wrap
+     itself) this canvas's own pixel size varies with family size, so the
+     wrap can't size itself from its content the way أقربائي's does */
+  /* direction:ltr here is load-bearing, not cosmetic -- and it has to live
+     on the WRAP (the canvas's containing block), not the canvas itself:
+     a normal-flow block's static position is governed by its CONTAINING
+     block's direction, not its own. The page is dir="rtl", and this
+     canvas's natural (pre-transform) width is usually WIDER than its wrap
+     (that's the whole reason it needs to be zoomed/panned) -- in an RTL
+     containing block, a child wider than it anchors to the RTL start edge
+     (the right), pushing its left edge deep into negative territory and
+     rendering the whole chart off-screen. Forcing the WRAP to LTR anchors
+     its child at a plain left:0, matching what every .org-box's own
+     `left`/`top` already assumes. */
+  .org-zoom-wrap{ height:420px; direction:ltr; }
+  .org-chart-canvas{ position:relative; transform-origin:0 0; }
   .org-lines{ position:absolute; top:0; left:0; overflow:visible; pointer-events:none; }
   .org-line{ fill:none; stroke:var(--line); stroke-width:2; }
   .org-box{
     position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:2px; border-radius:var(--radius-sm); border:1.5px solid var(--line); background:#fff;
-    box-shadow:var(--shadow-sm); cursor:pointer; padding:3px 4px; box-sizing:border-box;
+    gap:3px; border-radius:var(--radius-sm); border:1.5px solid var(--line); background:#fff;
+    direction:rtl; /* the canvas itself is forced direction:ltr (see its own
+      rule's comment) purely for positioning -- re-assert rtl here so the
+      Arabic name/count text inside each box still reads naturally */
+    box-shadow:var(--shadow-sm); cursor:pointer; padding:4px 5px; box-sizing:border-box;
     overflow:hidden; /* a name+count box that's a touch taller than its box
       (a real webfont's line-height can run taller than the sandbox/Tahoma
       fallback this was tuned against) clips cleanly instead of the name
@@ -404,7 +421,7 @@
   .org-box-root{ cursor:default; background:var(--gold-gradient); border-color:transparent; }
   .org-box-root:hover{ box-shadow:var(--shadow-sm); transform:none; }
   .org-box-name{
-    font-weight:800; font-size:.62em; color:var(--maroon); line-height:1.15;
+    font-weight:800; font-size:.66em; color:var(--maroon); line-height:1.15;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
   }
   /* male boxes: solid blue background, white text -- female boxes: dark
@@ -415,10 +432,14 @@
   .org-box.male .org-box-name,
   .org-box.female .org-box-name,
   .org-box-root .org-box-name{ color:#fff; }
-  .org-box-count{ font-size:.5em; color:var(--ink-soft); font-weight:700; }
+  .org-box-count{ font-size:.54em; color:var(--ink-soft); font-weight:700; }
   .org-box.male .org-box-count,
   .org-box.female .org-box-count,
   .org-box-root .org-box-count{ color:rgba(255,255,255,.85); }
+  /* the رجوع trail: "المسار: فلان ← فلان ← فلان" -- only shown once you've
+     actually drilled in at least once, so it's never just noise repeating
+     the centered root's own name back at you */
+  .org-trail{ color:var(--ink-soft); font-size:.8em; font-weight:700; margin:0 0 8px; text-align:center; }
 
   /* ================= "Arabic names only" warning toast ================= */
   /* Pinned near the TOP of the screen, not the bottom — on a phone, typing
@@ -536,25 +557,23 @@
       -webkit-overflow-scrolling:touch; overscroll-behavior:none;
     }
     .circular-chart-panel{ display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; }
-    .circular-chart-panel > .list-hint, .circular-toolbar{ flex:0 0 auto; }
+    .circular-chart-panel > .list-hint, .circular-chart-panel > .org-trail, .circular-toolbar{ flex:0 0 auto; }
     /* same overscroll-behavior:none reasoning as #treeViewport, above */
     .circ-scroll-area{
       flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden;
       -webkit-overflow-scrolling:touch; overscroll-behavior:none; padding-bottom:24px;
     }
 
-    /* فرعي (org-chart) page: hint banner + its own toolbar stay put; only
-       the chart (.org-scroll-area) scrolls. #orgSearchPanel/#orgChartPanel
-       reuse .relatives-search-panel/.circular-chart-panel, already covered
-       by the two mobile rules just above -- only .org-scroll-area itself
-       needs its own rule, since (per the "plain scroll" sizing decision)
-       it scrolls on BOTH axes, unlike .circ-scroll-area above. */
+    /* فرعي (org-chart) page: hint banner + trail + toolbar stay put.
+       #orgSearchPanel/#orgChartPanel/#orgZoomWrap reuse
+       .relatives-search-panel/.circular-chart-panel/.circ-zoom-wrap,
+       already covered by the rules above -- .org-zoom-wrap only needs to
+       override the desktop fixed height with "fill whatever's left". */
     html[data-theme="org"] .org-view{
       display:flex; flex-direction:column; height:100%; min-height:0; min-width:0;
     }
-    .org-scroll-area{
-      flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:auto;
-      -webkit-overflow-scrolling:touch; overscroll-behavior:none; padding-bottom:24px;
+    .org-zoom-wrap{
+      flex:1 1 auto; min-height:0; min-width:0; height:auto; max-width:none;
     }
   }
 </style>
@@ -732,15 +751,20 @@
 
       <div class="circular-chart-panel" id="orgChartPanel">
         <p class="list-hint">👆 اضغط على أي صندوق لفتح فرعه</p>
+        <p class="org-trail" id="orgTrail"></p>
         <div class="circular-toolbar">
           <button type="button" id="orgNewSearchBtn"><svg class="btn-ic"><use href="#ic-search"></use></svg> بحث جديد</button>
           <button type="button" id="orgBackBtn"><svg class="btn-ic"><use href="#ic-arrow-left"></use></svg> رجوع</button>
+          <button type="button" id="orgZoomResetBtn"><svg class="btn-ic"><use href="#ic-rotate"></use></svg> الحجم الأصلي</button>
           <label class="hide-female-toggle"><input type="checkbox" id="orgHideFemaleChk"> <svg class="btn-ic"><use href="#ic-eye-off"></use></svg> إخفاء الإناث</label>
         </div>
-        <div class="org-scroll-area">
-          <div class="org-chart-canvas" id="orgChartCanvas">
-            <svg class="org-lines" id="orgLinesSvg"></svg>
+        <div class="circ-scroll-area">
+          <div class="circ-zoom-wrap org-zoom-wrap" id="orgZoomWrap">
+            <div class="org-chart-canvas" id="orgChartCanvas">
+              <svg class="org-lines" id="orgLinesSvg"></svg>
+            </div>
           </div>
+          <p class="circ-zoom-hint">🔍 قرّب بإصبعين على الجوال، أو بعجلة الفأرة على الكمبيوتر — واسحب للتحريك</p>
           <p class="circ-caption" id="orgCaption"></p>
         </div>
       </div>
@@ -861,6 +885,7 @@
   const orgChartCanvasEl = document.getElementById('orgChartCanvas');
   const orgCaptionEl = document.getElementById('orgCaption');
   const orgBackBtn = document.getElementById('orgBackBtn');
+  const orgTrailEl = document.getElementById('orgTrail');
 
   // ---- pinch / wheel zoom + drag pan for the circular chart only ----
   const circZoomWrapEl = document.getElementById('circZoomWrap');
@@ -1377,6 +1402,149 @@
   }
   circBackBtn.addEventListener('click', circGoBack);
 
+  // ================= فرعي (org-chart): pinch / wheel zoom + drag pan =====
+  // Mirrors أقربائي's zoom system above almost exactly (same pointer-event
+  // approach, same pan/pinch/click-suppression logic) with one real
+  // difference: أقربائي's SVG always matches its wrap's own width (so the
+  // wrap only ever clips once zoomed PAST 1), while this canvas has its
+  // own fixed pixel size from the box-layout algorithm that can be wider
+  // OR narrower than the wrap at scale 1 -- so instead of a fixed
+  // CIRC_ZOOM_MIN=1 floor, every render computes a fresh "fit" scale that
+  // frames the WHOLE chart (root+children+grandchildren) inside the wrap,
+  // and that's also what رجوع/بحث/hide-females/الحجم الأصلي all reset back
+  // to -- there's no separate "center the root" step needed, because
+  // framing the whole chart already centers it.
+  const orgZoomWrapEl = document.getElementById('orgZoomWrap');
+  const orgZoomResetBtn = document.getElementById('orgZoomResetBtn');
+  let orgZoomScale = 1, orgZoomX = 0, orgZoomY = 0;
+  let orgCanvasW = 0, orgCanvasH = 0; // the canvas's own natural (unscaled) size, set by renderOrgChart
+  const ORG_ZOOM_FLOOR = 0.2, ORG_ZOOM_MAX = 3;
+
+  function applyOrgZoomTransform(){
+    orgChartCanvasEl.style.transform = `translate(${orgZoomX}px, ${orgZoomY}px) scale(${orgZoomScale})`;
+  }
+  // unlike clampCircPan (which only ever clips an over-sized SVG), a small
+  // family's canvas can be SMALLER than the wrap too -- when that happens
+  // this centers it instead of pinning it in the corner
+  function clampOrgPan(){
+    const rect = orgZoomWrapEl.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    const contentW = orgCanvasW * orgZoomScale, contentH = orgCanvasH * orgZoomScale;
+    orgZoomX = (contentW <= w) ? (w - contentW) / 2 : Math.min(0, Math.max(w - contentW, orgZoomX));
+    orgZoomY = (contentH <= h) ? (h - contentH) / 2 : Math.min(0, Math.max(h - contentH, orgZoomY));
+  }
+  function orgZoomAt(px, py, factor){
+    const newScale = Math.min(ORG_ZOOM_MAX, Math.max(ORG_ZOOM_FLOOR, orgZoomScale * factor));
+    if(newScale === orgZoomScale) return;
+    orgZoomX = px - (px - orgZoomX) * (newScale / orgZoomScale);
+    orgZoomY = py - (py - orgZoomY) * (newScale / orgZoomScale);
+    orgZoomScale = newScale;
+    clampOrgPan();
+    applyOrgZoomTransform();
+  }
+  // the scale that frames the ENTIRE current chart inside the wrap -- capped
+  // so a single small box (e.g. someone with no children at all) doesn't
+  // get blown up to fill the whole wrap by default
+  function computeOrgFitScale(){
+    const rect = orgZoomWrapEl.getBoundingClientRect();
+    if(!rect.width || !rect.height || !orgCanvasW || !orgCanvasH) return 1;
+    const fit = Math.min(rect.width / orgCanvasW, rect.height / orgCanvasH);
+    return Math.min(1.5, Math.max(ORG_ZOOM_FLOOR, fit));
+  }
+  function resetOrgZoom(){
+    orgZoomScale = computeOrgFitScale();
+    orgZoomX = 0; orgZoomY = 0;
+    clampOrgPan();
+    applyOrgZoomTransform();
+  }
+
+  orgZoomWrapEl.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = orgZoomWrapEl.getBoundingClientRect();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    orgZoomAt(px, py, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+  }, { passive: false });
+
+  const orgPointers = new Map();
+  let orgPinchStartDist = 0;
+  let orgLastPanPoint = null;
+  let orgDragMoved = false;
+  let orgSuppressClick = false;
+
+  function orgPointerDistance(){
+    const pts = Array.from(orgPointers.values());
+    return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  }
+  function orgPointerMidpoint(){
+    const pts = Array.from(orgPointers.values());
+    return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  }
+  orgZoomWrapEl.addEventListener('pointerdown', (e) => {
+    orgPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    orgDragMoved = false;
+    if(orgPointers.size === 2){
+      try{
+        for(const id of orgPointers.keys()) orgZoomWrapEl.setPointerCapture(id);
+      }catch(err){}
+      orgPinchStartDist = orgPointerDistance();
+    } else if(orgPointers.size === 1){
+      orgLastPanPoint = { x: e.clientX, y: e.clientY };
+    }
+  });
+  orgZoomWrapEl.addEventListener('pointermove', (e) => {
+    if(!orgPointers.has(e.pointerId)) return;
+    orgPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if(orgPointers.size === 2){
+      const dist = orgPointerDistance();
+      const mid = orgPointerMidpoint();
+      const rect = orgZoomWrapEl.getBoundingClientRect();
+      if(orgPinchStartDist > 0){
+        orgZoomAt(mid.x - rect.left, mid.y - rect.top, dist / orgPinchStartDist);
+      }
+      orgPinchStartDist = dist;
+      orgDragMoved = true;
+    } else if(orgPointers.size === 1 && orgLastPanPoint){
+      // unlike أقربائي (which only allows panning once zoomed in past 1x,
+      // since at 1x its square SVG already exactly fills the wrap), a
+      // one-finger drag is always allowed here -- clampOrgPan harmlessly
+      // snaps it straight back if the current scale already fits an axis
+      const dx = e.clientX - orgLastPanPoint.x;
+      const dy = e.clientY - orgLastPanPoint.y;
+      if(Math.abs(dx) > 2 || Math.abs(dy) > 2){
+        if(!orgDragMoved){
+          try{ orgZoomWrapEl.setPointerCapture(e.pointerId); }catch(err){}
+        }
+        orgDragMoved = true;
+        orgZoomWrapEl.classList.add('dragging');
+      }
+      orgZoomX += dx;
+      orgZoomY += dy;
+      clampOrgPan();
+      applyOrgZoomTransform();
+      orgLastPanPoint = { x: e.clientX, y: e.clientY };
+    }
+  });
+  function orgPointerEnd(e){
+    orgPointers.delete(e.pointerId);
+    orgLastPanPoint = null;
+    orgPinchStartDist = 0;
+    orgZoomWrapEl.classList.remove('dragging');
+    try{ orgZoomWrapEl.releasePointerCapture(e.pointerId); }catch(err){}
+    if(orgDragMoved){
+      // a pan/pinch just ended — swallow the click it would otherwise fire,
+      // so lifting a finger off a box doesn't also drill into it
+      orgSuppressClick = true;
+      setTimeout(() => { orgSuppressClick = false; }, 50);
+    }
+    orgDragMoved = false;
+  }
+  orgZoomWrapEl.addEventListener('pointerup', orgPointerEnd);
+  orgZoomWrapEl.addEventListener('pointercancel', orgPointerEnd);
+  orgZoomWrapEl.addEventListener('click', (e) => {
+    if(orgSuppressClick){ e.stopPropagation(); e.preventDefault(); }
+  }, true);
+  orgZoomResetBtn.addEventListener('click', resetOrgZoom);
+
   // ================= فرعي (org-chart) rendering =================
   // Women are always leaves in this dataset (_total===1), so only sons can
   // ever have their own children — that's why only each child's OWN
@@ -1386,7 +1554,7 @@
     return hideFemales ? n._children.filter(c => c.gender !== 'female') : n._children;
   }
 
-  const ORG_BOX_W = 64, ORG_BOX_H = 40, ORG_GAP_X = 8, ORG_ROW_GAP = 36;
+  const ORG_BOX_W = 70, ORG_BOX_H = 44, ORG_GAP_X = 8, ORG_ROW_GAP = 40;
 
   // a child's own "slot" must be at least as wide as its grandchildren row
   // beneath it, or those grandchildren would overlap the next uncle's slot
@@ -1412,6 +1580,8 @@
     const gkY = childY + ORG_BOX_H + ORG_ROW_GAP;
     const canvasHeight = ORG_BOX_H + ORG_ROW_GAP + ORG_BOX_H + (hasGrandchildren ? ORG_ROW_GAP + ORG_BOX_H : 0);
 
+    orgCanvasW = canvasWidth;
+    orgCanvasH = canvasHeight;
     orgChartCanvasEl.style.width = canvasWidth + 'px';
     orgChartCanvasEl.style.height = canvasHeight + 'px';
     orgChartCanvasEl.innerHTML = '';
@@ -1487,6 +1657,19 @@
     });
 
     orgCaptionEl.textContent = `${deepestRendered} أجيال ظاهرة   ${maleCount} ذكور   ${femaleCount} إناث`;
+
+    // "المسار: ..." only once there's an actual path to retrace (i.e. at
+    // least one drill-down happened) -- on a fresh search result it would
+    // just be the centered root's own name again, which adds nothing
+    orgTrailEl.textContent = orgHistory.length
+      ? 'المسار: ' + orgHistory.concat([root]).map(n => n.name).join(' ← ')
+      : '';
+
+    // every render re-frames the WHOLE chart (root+children+grandchildren)
+    // inside the zoom wrap, so the person you just searched for or drilled
+    // into is never scrolled off-screen -- this is also what رجوع، بحث
+    // جديد، إخفاء الإناث and الحجم الأصلي all land back on
+    resetOrgZoom();
   }
 
   function updateOrgBackBtn(){
