@@ -313,6 +313,13 @@
   }
   #relSearchBtn:hover, #orgSearchBtn:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
   .circular-chart-panel{ display:none; }
+  /* JS toggles visibility via this class (not inline style.display) so the
+     mobile media query below can give it display:flex while this base rule
+     keeps display:block on desktop -- an inline style would always beat
+     the media query's rule regardless of viewport, which used to force
+     display:block even on mobile and silently break the flex-fill chain
+     that lets the chart grow into unused vertical space. */
+  .circular-chart-panel.panel-shown{ display:block; }
   .circular-toolbar{
     display:flex; align-items:center; justify-content:center; gap:10px;
     flex-wrap:wrap; padding:10px 6px 0;
@@ -341,7 +348,18 @@
     border-radius:12px; touch-action:none; cursor:grab;
   }
   .circ-zoom-wrap.dragging{ cursor:grabbing; }
-  #circSvg{ width:100%; height:auto; display:block; touch-action:none; transform-origin:0 0; }
+  /* height:100% here is a deliberate no-op on desktop: .circ-zoom-wrap has no
+     definite height there, so a percentage height on this SVG (a replaced
+     element) computes to 'auto' per CSS2.1 10.5, falling back to the same
+     width-driven aspect-ratio sizing as a plain "height:auto" would give --
+     identical to the old desktop behaviour. On mobile, once .circ-zoom-wrap
+     gets a real flex-resolved height (see the mobile media query below),
+     this becomes a genuine explicit height, and preserveAspectRatio="xMidYMid
+     meet" (set on the element) scales/letterboxes the 640x640 viewBox to use
+     whichever of width/height is the tighter fit -- so the chart grows to
+     fill the taller space phones actually have available, instead of being
+     capped at whatever height its width alone implied. */
+  #circSvg{ width:100%; height:100%; display:block; touch-action:none; transform-origin:0 0; }
   .circ-zoom-hint{ color:#7a8d82; font-size:.78em; margin:8px 0 0; }
   .circ-arc{ cursor:pointer; stroke:#fff; stroke-width:.4; }
   .circ-arc.male{ fill:#bcd9ef; }
@@ -556,25 +574,45 @@
       flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden;
       -webkit-overflow-scrolling:touch; overscroll-behavior:none;
     }
-    .circular-chart-panel{ display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; }
+    .circular-chart-panel.panel-shown{ display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; }
     .circular-chart-panel > .list-hint, .circular-chart-panel > .org-trail, .circular-toolbar{ flex:0 0 auto; }
-    /* same overscroll-behavior:none reasoning as #treeViewport, above */
+    /* same overscroll-behavior:none reasoning as #treeViewport, above.
+       display:flex here is what lets .circ-zoom-wrap's own flex:1 1 auto
+       (just below) actually take hold -- without a flex *container*, a
+       child's flex shorthand is simply ignored, which used to leave the
+       chart only as tall as its own (unscaled) content and the rest of
+       this pane blank underneath it. */
     .circ-scroll-area{
+      display:flex; flex-direction:column;
       flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden;
       -webkit-overflow-scrolling:touch; overscroll-behavior:none; padding-bottom:24px;
     }
+    /* let the chart itself (أقربائي's circle AND فرعي's org-canvas) grow to
+       fill whatever vertical room .circ-scroll-area has left after the
+       hint/caption text below it, instead of shrink-wrapping to its own
+       content height and leaving the remainder blank. max-width:none drops
+       the 560px desktop cap too, so a wide phone (e.g. landscape) can use
+       its full width as well. */
+    .circ-zoom-wrap{
+      /* min-height keeps the chart from being squashed illegibly thin on a
+         short viewport (e.g. a phone in landscape, where there's little
+         vertical room left after the fixed toolbar/hint/caption) -- past
+         that floor, .circ-scroll-area's own overflow-y:auto (set above)
+         takes over and lets the user scroll to it instead. */
+      flex:1 1 auto; min-height:240px; min-width:0; max-width:none;
+    }
+    .circ-zoom-hint, .circ-caption{ flex:0 0 auto; }
 
     /* فرعي (org-chart) page: hint banner + trail + toolbar stay put.
        #orgSearchPanel/#orgChartPanel/#orgZoomWrap reuse
        .relatives-search-panel/.circular-chart-panel/.circ-zoom-wrap,
        already covered by the rules above -- .org-zoom-wrap only needs to
-       override the desktop fixed height with "fill whatever's left". */
+       cancel its desktop fixed height (the flex-grow + max-width:none above
+       already apply to it via the shared .circ-zoom-wrap class). */
     html[data-theme="org"] .org-view{
       display:flex; flex-direction:column; height:100%; min-height:0; min-width:0;
     }
-    .org-zoom-wrap{
-      flex:1 1 auto; min-height:0; min-width:0; height:auto; max-width:none;
-    }
+    .org-zoom-wrap{ height:auto; }
   }
 </style>
 </head>
@@ -1015,11 +1053,11 @@
   const circularChartPanelEl = document.getElementById('circularChartPanel');
   function showRelativesSearchForm(){
     relativesSearchPanelEl.style.display = 'block';
-    circularChartPanelEl.style.display = 'none';
+    circularChartPanelEl.classList.remove('panel-shown');
   }
   function showRelativesChart(){
     relativesSearchPanelEl.style.display = 'none';
-    circularChartPanelEl.style.display = 'block';
+    circularChartPanelEl.classList.add('panel-shown');
   }
   function resetRelativesForm(){
     ['relName','relFather','relGrandfather','relGGFather','relBranch'].forEach(id => {
@@ -1036,11 +1074,11 @@
   const orgChartPanelEl = document.getElementById('orgChartPanel');
   function showOrgSearchForm(){
     orgSearchPanelEl.style.display = 'block';
-    orgChartPanelEl.style.display = 'none';
+    orgChartPanelEl.classList.remove('panel-shown');
   }
   function showOrgChart(){
     orgSearchPanelEl.style.display = 'none';
-    orgChartPanelEl.style.display = 'block';
+    orgChartPanelEl.classList.add('panel-shown');
   }
   function resetOrgForm(){
     ['orgName','orgFather','orgGrandfather','orgGGFather','orgBranch'].forEach(id => {

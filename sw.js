@@ -3,7 +3,7 @@
 //
 // Bump this version string whenever the cached files change, so returning
 // visitors pick up the new version instead of being stuck on an old one.
-const CACHE_NAME = 'alsaleh-tree-v5';
+const CACHE_NAME = 'alsaleh-tree-v6';
 
 // The static "shell" -- same for every visitor, safe to cache aggressively
 // and serve instantly, refreshed quietly in the background.
