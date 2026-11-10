@@ -677,9 +677,61 @@
     }
     .org-zoom-wrap{ height:auto; }
   }
+
+  /* ---- phone-landscape lock --------------------------------------------
+     Reported: every page "goes bad" when a PHONE is rotated to landscape
+     (the app-shell above is tuned for a phone's tall, narrow portrait
+     shape), while an iPad or a computer in landscape is fine and should
+     stay untouched. A true OS-level orientation lock isn't available to a
+     plain website (the Screen Orientation API's lock() only works for a
+     page running fullscreen, which this site isn't, and iOS Safari doesn't
+     support it at all), so this fakes the same result: an opaque, full-
+     screen message asking the user to rotate back, sitting on top of
+     everything else, that only appears for a PHONE specifically.
+
+     "Phone" here is (hover:none) and (pointer:coarse) -- a touch-primary
+     device, same test the app-shell media query above uses -- narrowed
+     further by max-width:1000px so it fires in landscape only when the
+     device's long edge is phone-sized. Every current phone's landscape
+     width tops out well under that (even the largest, ~930px); every
+     current iPad's landscape width starts at 1024px and up, so iPads are
+     never caught by this rule. A computer never matches at all, since a
+     mouse-driven browser is (hover:hover) and (pointer:fine) regardless of
+     how its window is resized. */
+  #orientationLockOverlay{
+    display:none;
+    position:fixed; inset:0; z-index:99999;
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:18px; padding:24px; text-align:center;
+    background:var(--gold-gradient); color:#fff;
+  }
+  #orientationLockOverlay .orient-phone{
+    width:56px; height:92px; border:4px solid currentColor; border-radius:12px;
+    position:relative; flex:0 0 auto;
+    animation:orientRotateHint 2.4s ease-in-out infinite;
+  }
+  #orientationLockOverlay .orient-phone::after{
+    content:""; position:absolute; left:50%; bottom:7px; width:12px; height:12px;
+    margin-left:-6px; border-radius:50%; background:currentColor;
+  }
+  @keyframes orientRotateHint{
+    0%, 15%{ transform:rotate(0deg); }
+    50%, 65%{ transform:rotate(-90deg); }
+    100%{ transform:rotate(0deg); }
+  }
+  #orientationLockOverlay .orient-msg{ font-size:1.15em; font-weight:700; margin:0; max-width:320px; }
+  #orientationLockOverlay .orient-sub{ font-size:.9em; opacity:.92; margin:0; max-width:300px; }
+  @media (orientation: landscape) and (max-width: 1000px) and (hover: none) and (pointer: coarse){
+    #orientationLockOverlay{ display:flex; }
+  }
 </style>
 </head>
 <body>
+<div id="orientationLockOverlay" aria-hidden="true">
+  <div class="orient-phone"></div>
+  <p class="orient-msg">يرجى تدوير الجهاز إلى الوضع العمودي</p>
+  <p class="orient-sub">هذا الموقع مصمم للعرض الرأسي على الهاتف</p>
+</div>
 <svg style="display:none" aria-hidden="true">
   <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
   <symbol id="ic-expand" viewBox="0 0 24 24"><polyline points="7 7 12 12 17 7"/><polyline points="7 13 12 18 17 13"/></symbol>
