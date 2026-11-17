@@ -163,12 +163,6 @@
   .tree-content{ flex:1 1 auto; min-width:0; }
 
   .search-panel-wrap{ position:relative; }
-  /* the شجرة الصالح page's own 5-field search panel is shown/hidden by the
-     🔍 بحث toggle button -- scoped to this one id so the أقربائي page's own
-     (always-shown) search panel, which shares the .search-panel-wrap class,
-     is never affected */
-  #listSearchPanelWrap.collapsed{ display:none; }
-  #listSearchPanelWrap{ margin-top:10px; }
   .search-panel{
     display:flex; flex-direction:column; align-items:stretch; gap:8px;
   }
@@ -376,13 +370,13 @@
   }
   .relatives-search-panel{ max-width:420px; margin:14px auto 0; text-align:right; }
   .relatives-search-panel .rel-intro{ color:var(--ink-soft); font-size:.9em; margin:0 0 12px; text-align:center; }
-  #relSearchBtn, #orgSearchBtn{
+  #relSearchBtn, #orgSearchBtn, #listSearchBtn{
     display:flex; align-items:center; justify-content:center; gap:8px; font-family:inherit; font-weight:800;
     font-size:.92em; cursor:pointer; background:var(--gold-gradient); color:#fff; border:none;
     padding:10px 14px; border-radius:var(--radius-md); box-shadow:var(--shadow-sm);
     transition:box-shadow .15s ease, transform .15s ease;
   }
-  #relSearchBtn:hover, #orgSearchBtn:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  #relSearchBtn:hover, #orgSearchBtn:hover, #listSearchBtn:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
   .circular-chart-panel{ display:none; }
   /* JS toggles visibility via this class (not inline style.display) so the
      mobile media query below can give it display:flex while this base rule
@@ -391,6 +385,14 @@
      display:block even on mobile and silently break the flex-fill chain
      that lets the chart grow into unused vertical space. */
   .circular-chart-panel.panel-shown{ display:block; }
+  /* شجرة الصالح (list) page: same swap-the-whole-view pattern as
+     أقربائي/فرعي above -- #listSearchPanel (reusing .relatives-search-panel)
+     and #listTreePanel (hint + #treeViewport) are never both visible at
+     once, toggled by showListSearchForm()/showListTree(). Same reasoning
+     as .circular-chart-panel.panel-shown just above for why this is a
+     class, not an inline style. */
+  .list-tree-panel{ display:none; }
+  .list-tree-panel.panel-shown{ display:block; }
   .circular-toolbar{
     display:flex; align-items:center; justify-content:center; gap:10px;
     flex-wrap:wrap; padding:10px 6px 0;
@@ -656,28 +658,21 @@
       flex:1 1 auto; min-height:0; min-width:0; overflow:hidden;
     }
 
-    /* شجرة الصالح (list) page: toolbar + بحث panel + hint banner stay
-       put; only the tree rows (#treeViewport) scroll */
+    /* شجرة الصالح (list) page: toolbar stays put; #listSearchPanel and
+       #listTreePanel are never both visible at once (see
+       showListSearchForm()/showListTree()), each getting the same
+       fixed-chrome-plus-one-scroll-region treatment as أقربائي/فرعي's own
+       search-form/chart pair just below. */
     .tree-content{ display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; }
-    .controls, #listSearchPanelWrap, .tree-content > .list-hint{ flex:0 0 auto; }
-    /* #listSearchPanelWrap itself doesn't grow/shrink (flex:0 0 auto,
-       above) -- fine normally, since its 5 fields comfortably fit. But
-       when a name is ambiguous, #searchResults can add 2-3 extra
-       candidate cards below those fields, and this whole panel sits
-       ABOVE #treeViewport (the only element this layout lets scroll) --
-       once the panel's own natural height then exceeds what's left of
-       the screen, the overflow isn't just clipped by #searchResults' own
-       max-height/overflow-y (that only helps content already inside the
-       visible area), it's clipped by .tree-content/body's own
-       overflow:hidden, with nothing below it able to scroll into view at
-       all. Reported as the candidate picker opening but being unreachable
-       on a phone. JS (fitListSearchPanelHeight, called when the panel
-       opens and on resize) sets an inline max-height capping this panel
-       to whatever room is actually left below it in the viewport, and
-       this gives it its own internal scroll for that case specifically. */
-    #listSearchPanelWrap:not(.collapsed){
-      overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
-    }
+    .controls{ flex:0 0 auto; }
+    /* #listSearchPanel reuses .relatives-search-panel's own flex:1 1 auto
+       + overflow-y:auto treatment (its rule is a few lines down, shared
+       with أقربائي/فرعي) -- it's now a full, independently-scrolling view
+       in its own right, not a small panel squeezed in above the tree, so
+       an ambiguous match's extra candidate cards can no longer end up
+       clipped with nothing able to scroll to them (the bug this replaced). */
+    .list-tree-panel.panel-shown{ display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; }
+    .list-tree-panel > .list-hint{ flex:0 0 auto; }
     /* min-width:0 alongside overflow-y:auto is what keeps THIS PANE itself
        from growing wider than the screen when a deeply-expanded row
        (توسيع الكل can run 13 generations deep) is a bit wider than
@@ -879,17 +874,17 @@
         <button id="listBackBtn" disabled><svg class="btn-ic"><use href="#ic-arrow-left"></use></svg> رجوع</button>
       </div>
 
-      <!-- Kept ABOVE #listSearchPanelWrap deliberately: this hint is about
-           the TREE ROWS below, and is meant to stay pinned right under the
-           toolbar at all times. It used to sit after the search panel, so
-           opening بحث's 5 fields pushed it (and the tree) further down the
-           page instead of leaving it in place -- reported as "this hint
-           should stay fixed at the top, not move down." Now only the tree
-           view gets pushed when the panel opens; the hint itself doesn't
-           move. -->
-      <p class="list-hint">👆 اضغط على الاسم لفتح أو طي الفرع</p>
-
-      <div class="search-panel-wrap collapsed" id="listSearchPanelWrap">
+      <!-- شجرة الصالح's own standalone search view, same pattern as
+           أقربائي/فرعي's #relativesSearchPanel/#orgSearchPanel just below
+           in this file: while بحث is open, this REPLACES the tree view
+           entirely (list-hint + #treeViewport, now wrapped as
+           #listTreePanel) instead of squeezing 5 fields in above
+           still-visible tree rows -- a small embedded panel used to get
+           cramped/unreachable on a phone once an ambiguous match added
+           extra candidate cards. See showListSearchForm()/showListTree(). -->
+      <div class="relatives-search-panel" id="listSearchPanel" style="display:none">
+        <p class="rel-intro">أدخل الأسماء الخمسة لفتح شجرة الصالح</p>
+        <div class="search-panel-wrap">
         <div class="search-panel">
           <div class="search-field">
             <label>الاسم</label>
@@ -916,12 +911,20 @@
             <input id="searchBranch" type="text" placeholder="مطلوب" autocomplete="off">
             <div class="suggest-box" id="branchSuggestBox"></div>
           </div>
+          <button id="listSearchBtn" type="button"><svg class="btn-ic"><use href="#ic-search"></use></svg> عرض شجرة الصالح</button>
           <div id="searchResults"></div>
         </div>
       </div>
+      </div>
 
-      <div id="treeViewport">
-        <p class="load-note" id="loadNote">جارٍ تحميل الشجرة…</p>
+      <!-- shown by default (unlike أقربائي/فرعي, whose default view IS
+           their search form) -- see the .panel-shown class in the base
+           CSS near .circular-chart-panel.panel-shown, above. -->
+      <div class="list-tree-panel panel-shown" id="listTreePanel">
+        <p class="list-hint">👆 اضغط على الاسم لفتح أو طي الفرع</p>
+        <div id="treeViewport">
+          <p class="load-note" id="loadNote">جارٍ تحميل الشجرة…</p>
+        </div>
       </div>
     </div>
 
@@ -2394,12 +2397,14 @@
   document.getElementById('searchGGFather').addEventListener('input', refreshBranchOptions);
 
   // رجوع is enabled either when there's a past بحث reveal to undo, OR the
-  // 5-field search panel is currently open (closing THAT also counts as
-  // something to "go back" from now -- see listGoBack's own comment).
+  // standalone 5-field search view is currently open (closing THAT also
+  // counts as something to "go back" from now -- see listGoBack's own
+  // comment).
   function updateListBackBtn(){
     const btn = document.getElementById('listBackBtn');
     if(!btn) return;
-    const panelOpen = listSearchPanelWrap && !listSearchPanelWrap.classList.contains('collapsed');
+    const panel = document.getElementById('listSearchPanel');
+    const panelOpen = panel && panel.style.display !== 'none';
     btn.disabled = !panelOpen && listHistory.length === 0;
   }
 
@@ -2457,14 +2462,16 @@
   }
 
   function listGoBack(){
-    // Closing an open بحث panel takes priority over undoing a past reveal.
+    // Closing an open بحث view takes priority over undoing a past reveal.
     // بحث used to toggle itself closed again on a second click, which read
     // as "I have to press بحث to get OUT of بحث" -- رجوع is the dedicated
     // "back out of this" control everywhere else on this page, so it's
     // what cancels an open search now too (see updateListBackBtn for why
-    // it's enabled whenever the panel is open, even with no history yet).
-    if(listSearchPanelWrap && !listSearchPanelWrap.classList.contains('collapsed')){
-      listSearchPanelWrap.classList.add('collapsed');
+    // it's enabled whenever the search view is open, even with no history
+    // yet).
+    const panel = document.getElementById('listSearchPanel');
+    if(panel && panel.style.display !== 'none'){
+      showListTree();
       updateListBackBtn();
       return;
     }
@@ -2484,48 +2491,44 @@
   }
   document.getElementById('listBackBtn').addEventListener('click', listGoBack);
 
-  // ---- شجرة الصالح page's بحث toggle: opens/closes the 5-field panel in
-  // place (the user never leaves the list page). Finishing the 5th field
-  // (الفرع الرئيسي) with a match that EXACTLY identifies one person auto-
-  // closes the panel and jumps straight to them with the persistent yellow
-  // shadow above -- no separate submit button needed. ----
-  const listSearchPanelWrap = document.getElementById('listSearchPanelWrap');
+  // ---- شجرة الصالح page: بحث opens a standalone full-page 5-field search
+  // view, same pattern as أقربائي/فرعي's own #relativesSearchPanel/
+  // #orgSearchPanel (see showListSearchForm/showListTree) -- while it's
+  // open it entirely REPLACES the tree view (#listTreePanel) rather than
+  // squeezing its fields in above still-visible tree rows. رجوع closes it
+  // (see listGoBack); عرض شجرة الصالح (or Enter in any of the 5 fields)
+  // submits it. ----
+  const listSearchPanelEl = document.getElementById('listSearchPanel');
+  const listTreePanelEl = document.getElementById('listTreePanel');
   const listSearchToggleBtn = document.getElementById('listSearchToggleBtn');
   const searchResultsBox = document.getElementById('searchResults');
   const LIST_SEARCH_FIELD_IDS = ['searchName','searchFather','searchGrandfather','searchGGFather','searchBranch'];
 
+  function showListSearchForm(){
+    listSearchPanelEl.style.display = 'block';
+    listTreePanelEl.classList.remove('panel-shown');
+  }
+  function showListTree(){
+    listSearchPanelEl.style.display = 'none';
+    listTreePanelEl.classList.add('panel-shown');
+  }
+
   function resetListSearchPanel(){
     LIST_SEARCH_FIELD_IDS.forEach(id => { document.getElementById(id).value = ''; });
-    listSearchPanelWrap.querySelectorAll('.suggest-box.open').forEach(b => b.classList.remove('open'));
+    listSearchPanelEl.querySelectorAll('.suggest-box.open').forEach(b => b.classList.remove('open'));
     searchResultsBox.innerHTML = '';
     searchResultsBox.style.display = 'none';
   }
 
-  // Only the mobile app-shell layout pins this panel above a non-scrolling
-  // ancestor (see that media query's own comment on #listSearchPanelWrap) --
-  // on desktop the page just scrolls normally, so this leaves it alone there.
-  const MOBILE_SHELL_QUERY = '(max-width: 768px), (hover: none) and (pointer: coarse)';
-  function fitListSearchPanelHeight(){
-    if(!window.matchMedia(MOBILE_SHELL_QUERY).matches || listSearchPanelWrap.classList.contains('collapsed')){
-      listSearchPanelWrap.style.maxHeight = '';
-      return;
-    }
-    const top = listSearchPanelWrap.getBoundingClientRect().top;
-    const available = Math.max(160, Math.round(window.innerHeight - top - 12));
-    listSearchPanelWrap.style.maxHeight = available + 'px';
-  }
-  window.addEventListener('resize', fitListSearchPanelHeight);
-
-  // بحث only OPENS the panel now -- closing it is رجوع's job (see
+  // بحث only OPENS the search view now -- closing it is رجوع's job (see
   // listGoBack). It used to also toggle itself closed on a second click,
   // which meant leaving the search required pressing بحث again instead of
   // the رجوع button that does that job everywhere else on this page.
   listSearchToggleBtn.addEventListener('click', () => {
-    if(listSearchPanelWrap.classList.contains('collapsed')){
+    if(listSearchPanelEl.style.display === 'none'){
       resetListSearchPanel();
-      listSearchPanelWrap.classList.remove('collapsed');
+      showListSearchForm();
       document.getElementById('searchName').focus();
-      fitListSearchPanelHeight();
     }else{
       document.getElementById('searchName').focus();
     }
@@ -2533,10 +2536,9 @@
   });
 
   // deliberately stricter than search()'s fuzzy/partial matching used
-  // elsewhere on this page -- this only fires once the user has actually
-  // finished typing each of the 5 full, correct names. A partial prefix
-  // (e.g. "صا" of "صالح") would otherwise "match" early via startsWith and
-  // jump the tree before they're done typing.
+  // elsewhere on this page -- all 5 names must be exact, full matches. A
+  // partial prefix (e.g. "صا" of "صالح") would otherwise "match" via
+  // startsWith and resolve to the wrong person.
   function exactListMatches(fields){
     const { name, father, grandfather, ggf, branch } = fields;
     if(!name || !father || !grandfather || !ggf || !branch) return [];
@@ -2551,43 +2553,46 @@
     });
   }
 
-  function maybeAutoResolveListSearch(){
+  // explicit submit now (عرض شجرة الصالح button, or Enter in any field) --
+  // same pattern as أقربائي/فرعي's own runRelativesSearch/runOrgSearch,
+  // instead of auto-resolving on every keystroke once all 5 were filled.
+  function runListSearch(){
     const fields = currentFields();
-    const allFilled = fields.name && fields.father && fields.grandfather && fields.ggf && fields.branch;
-    if(!allFilled){
-      searchResultsBox.style.display = 'none';
+    if(!fields.name || !fields.father || !fields.grandfather || !fields.ggf || !fields.branch){
+      searchResultsBox.innerHTML = '<div class="error">الأسماء الخمسة جميعها مطلوبة — الاسم، الأب، الجد، الجد الأكبر، والفرع الرئيسي</div>';
+      searchResultsBox.style.display = 'block';
       return;
     }
     const matches = exactListMatches(fields);
+    if(matches.length === 1){
+      searchResultsBox.style.display = 'none';
+      showListTree();
+      revealNode(matches[0]);
+      return;
+    }
     if(!matches.length){
       searchResultsBox.innerHTML = '<div class="error">لا يوجد فرد بهذه الأسماء الخمسة — تحقق من التدقيق</div>';
       searchResultsBox.style.display = 'block';
-      fitListSearchPanelHeight();
-      return;
-    }
-    if(matches.length === 1){
-      listSearchPanelWrap.classList.add('collapsed');
-      searchResultsBox.style.display = 'none';
-      revealNode(matches[0]);
       return;
     }
     // More than one real person can share an identical 5-name chain --
     // "الفرع الرئيسي" only has to match n._branchName, a shared umbrella
     // label well above these 5 names, so two cousins deep in different
     // sub-lines can easily collide on name+father+grandfather+جد أكبر+فرع.
-    // This used to silently جump to matches[0] and never tell the user
-    // other real people matched too, then (once fixed) showed them in a
-    // small list embedded in this panel -- which on a phone could still
-    // end up clipped or cramped. Now it hands off to the shared full-
-    // screen ambiguous-match page instead (see showAmbiguousMatches).
+    // Hands off to the shared full-screen ambiguous-match page instead
+    // (see showAmbiguousMatches).
     searchResultsBox.style.display = 'none';
     showAmbiguousMatches(matches, (chosen) => {
-      listSearchPanelWrap.classList.add('collapsed');
+      showListTree();
       revealNode(chosen);
     });
   }
+  document.getElementById('listSearchBtn').addEventListener('click', runListSearch);
   LIST_SEARCH_FIELD_IDS.forEach(id => {
-    document.getElementById(id).addEventListener('input', maybeAutoResolveListSearch);
+    document.getElementById(id).addEventListener('keydown', e => { if(e.key === 'Enter') runListSearch(); });
+  });
+  document.addEventListener('click', (e) => {
+    if(!e.target.closest('#listSearchPanel .search-panel-wrap')) searchResultsBox.style.display = 'none';
   });
 
   // ---- أقربائي page: a separate 5-mandatory-field search that resolves a
