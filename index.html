@@ -211,6 +211,48 @@
   #searchResults div.error, #relResults div.error, #orgResults div.error{ cursor:default; color:#c0392b; font-weight:700; }
   #searchResults div.error:hover, #relResults div.error:hover, #orgResults div.error:hover{ background:#fff; }
 
+  /* ---- shared "several people match these 5 names" full-screen page,
+     used by all three search flows via showAmbiguousMatches() -- see its
+     own HTML comment, above, for why this replaced the old inline lists
+     for the ambiguous (2+ match) case specifically. It's a real page, not
+     a popover: position:fixed over everything, its own header, and the
+     candidate list is the only thing that scrolls -- independent of
+     whatever layout (desktop, mobile list/أقربائي/فرعي app-shells) it
+     happens to be opened on top of. ---- */
+  .ambiguous-overlay{
+    position:fixed; inset:0; z-index:100000;
+    background:var(--gold-50); display:flex; flex-direction:column;
+  }
+  .ambiguous-overlay[hidden]{ display:none; }
+  .ambiguous-header{
+    flex:0 0 auto; display:flex; align-items:center; gap:12px;
+    padding:14px 16px; background:var(--gold-gradient); color:#fff; box-shadow:var(--shadow-md);
+  }
+  .ambiguous-header h2{ margin:0; font-size:1.02em; font-weight:800; flex:1 1 auto; }
+  #ambiguousCloseBtn{
+    background:rgba(255,255,255,.2); border:none; color:#fff; width:34px; height:34px;
+    border-radius:50%; cursor:pointer; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; transition:background .15s ease;
+  }
+  #ambiguousCloseBtn:hover{ background:rgba(255,255,255,.34); }
+  #ambiguousCloseBtn .btn-ic{ transform:scaleX(-1); } /* ← becomes → in this RTL "back" button */
+  .ambiguous-hint{
+    flex:0 0 auto; margin:0; padding:10px 16px; font-size:.85em;
+    color:var(--ink-soft); background:#fff; border-bottom:1px solid var(--line);
+  }
+  .ambiguous-list{
+    flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+    padding:12px; max-width:720px; width:100%; margin:0 auto; box-sizing:border-box;
+  }
+  .ambiguous-item{
+    background:#fff; border:1.5px solid var(--line); border-radius:var(--radius-md);
+    padding:14px 16px; margin-bottom:10px; cursor:pointer; box-shadow:var(--shadow-sm);
+    transition:box-shadow .15s ease, border-color .15s ease, transform .15s ease;
+  }
+  .ambiguous-item:hover{ box-shadow:var(--shadow-md); border-color:var(--gold); transform:translateY(-1px); }
+  .ambiguous-item .ambiguous-name{ font-weight:800; font-size:1.08em; color:var(--maroon); margin-bottom:6px; }
+  .ambiguous-item .ambiguous-path{ color:#5c7868; font-size:.88em; line-height:1.8; }
+
   /* the full mobile "app shell" layout (header/pills/toolbar/hint fixed,
      only the tree or chart scrolling) lives in one place near the very
      end of this stylesheet, after the circular-theme rules it also
@@ -772,6 +814,27 @@
   <div class="orient-phone"></div>
   <p class="orient-msg">يرجى تدوير الجهاز إلى الوضع العمودي</p>
   <p class="orient-sub">هذا الموقع مصمم للعرض الرأسي على الهاتف</p>
+</div>
+<!-- Shared, standalone full-screen page for "several real people match
+     these exact 5 names" -- used by all three pages (شجرة الصالح، أقربائي،
+     فرعي) via showAmbiguousMatches() below. It used to be a small list
+     embedded in each page's own search panel; on a phone that panel sits
+     in a part of the layout that was never meant to scroll, so once a
+     name was ambiguous the extra candidates could end up clipped off-
+     screen with no way to reach them, and even where they did show, a
+     cramped inline list made it hard to compare full lineages. A genuine
+     full-screen page (position:fixed, its own header + scrolling list)
+     sidesteps every layout it could ever be opened on top of, and gives
+     each candidate's full ancestry room to actually be read. -->
+<div id="ambiguousOverlay" class="ambiguous-overlay" hidden>
+  <div class="ambiguous-header">
+    <button type="button" id="ambiguousCloseBtn" aria-label="إغلاق">
+      <svg class="btn-ic" style="width:18px;height:18px"><use href="#ic-arrow-left"></use></svg>
+    </button>
+    <h2>عدة نتائج تطابق هذه الأسماء</h2>
+  </div>
+  <p class="ambiguous-hint">أكثر من شخص يشترك في هذه الأسماء الخمسة — اختر المقصود عبر مسار النسب الكامل أدناه</p>
+  <div class="ambiguous-list" id="ambiguousList"></div>
 </div>
 <svg style="display:none" aria-hidden="true">
   <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
@@ -2156,6 +2219,41 @@
     return chain;
   }
   function normalizedChain(n){ return ancestorChain(n).map(normalizeArabic); }
+
+  // ---- shared "several people match these 5 names" full-screen page --
+  // one implementation, used by شجرة الصالح/أقربائي/فرعي's search alike.
+  // See #ambiguousOverlay's own HTML comment for why this replaced each
+  // page's old embedded results list for the 2+-match case. ----
+  const ambiguousOverlay = document.getElementById('ambiguousOverlay');
+  const ambiguousList = document.getElementById('ambiguousList');
+  let ambiguousOnPick = null;
+  function showAmbiguousMatches(matches, onPick){
+    ambiguousOnPick = onPick;
+    ambiguousList.innerHTML = matches.map((n,i) => {
+      const path = ancestorChain(n).join(' ← ');
+      return `<div class="ambiguous-item" data-i="${i}"><div class="ambiguous-name">${n.name}</div><div class="ambiguous-path">${path}</div></div>`;
+    }).join('');
+    ambiguousList.querySelectorAll('.ambiguous-item').forEach(elm => {
+      elm.addEventListener('click', () => {
+        const idx = +elm.getAttribute('data-i');
+        const chosen = matches[idx];
+        const onPick = ambiguousOnPick; // hideAmbiguousOverlay() below nulls this out
+        hideAmbiguousOverlay();
+        if(onPick) onPick(chosen);
+      });
+    });
+    ambiguousOverlay.hidden = false;
+    ambiguousList.scrollTop = 0;
+  }
+  function hideAmbiguousOverlay(){
+    ambiguousOverlay.hidden = true;
+    ambiguousList.innerHTML = '';
+    ambiguousOnPick = null;
+  }
+  document.getElementById('ambiguousCloseBtn').addEventListener('click', hideAmbiguousOverlay);
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape' && !ambiguousOverlay.hidden) hideAmbiguousOverlay();
+  });
   function currentFields(){
     return {
       name: fieldTerm('searchName'),
@@ -2449,25 +2547,15 @@
     // label well above these 5 names, so two cousins deep in different
     // sub-lines can easily collide on name+father+grandfather+جد أكبر+فرع.
     // This used to silently جump to matches[0] and never tell the user
-    // other real people matched too (reported: a name that should be
-    // ambiguous never offered a pick-list, unlike أقربائي/فرعي's own
-    // search which already does this). Now it shows every match with its
-    // FULL ancestry -- same #searchResults markup/styling أقربائي/فرعي
-    // already use -- so the user can tell them apart and choose.
-    searchResultsBox.innerHTML = matches.map((n,i) => {
-      const path = ancestorChain(n).join(' ← ');
-      return `<div data-i="${i}">${n.name}<div class="path">${path}</div></div>`;
-    }).join('');
-    searchResultsBox.style.display = 'block';
-    searchResultsBox.querySelectorAll('div[data-i]').forEach(elm => {
-      elm.addEventListener('click', () => {
-        const idx = +elm.getAttribute('data-i');
-        listSearchPanelWrap.classList.add('collapsed');
-        searchResultsBox.style.display = 'none';
-        revealNode(matches[idx]);
-      });
+    // other real people matched too, then (once fixed) showed them in a
+    // small list embedded in this panel -- which on a phone could still
+    // end up clipped or cramped. Now it hands off to the shared full-
+    // screen ambiguous-match page instead (see showAmbiguousMatches).
+    searchResultsBox.style.display = 'none';
+    showAmbiguousMatches(matches, (chosen) => {
+      listSearchPanelWrap.classList.add('collapsed');
+      revealNode(chosen);
     });
-    fitListSearchPanelHeight();
   }
   LIST_SEARCH_FIELD_IDS.forEach(id => {
     document.getElementById(id).addEventListener('input', maybeAutoResolveListSearch);
@@ -2546,18 +2634,11 @@
       relResultsBox.style.display = 'block';
       return;
     }
-    relResultsBox.innerHTML = matches.map((n,i) => {
-      const path = ancestorChain(n).join(' ← ');
-      return `<div data-i="${i}">${n.name}<div class="path">${path}</div></div>`;
-    }).join('');
-    relResultsBox.style.display = 'block';
-    relResultsBox.querySelectorAll('div[data-i]').forEach(elm => {
-      elm.addEventListener('click', () => {
-        const idx = +elm.getAttribute('data-i');
-        relResultsBox.style.display = 'none';
-        openRelativesTreeFor(matches[idx]);
-      });
-    });
+    // 2+ real matches -- hand off to the shared full-screen ambiguous-
+    // match page (see showAmbiguousMatches) instead of this panel's own
+    // small embedded list.
+    relResultsBox.style.display = 'none';
+    showAmbiguousMatches(matches, (chosen) => openRelativesTreeFor(chosen));
   }
   document.getElementById('relSearchBtn').addEventListener('click', runRelativesSearch);
   [
@@ -2640,18 +2721,11 @@
       orgResultsBox.style.display = 'block';
       return;
     }
-    orgResultsBox.innerHTML = matches.map((n,i) => {
-      const path = ancestorChain(n).join(' ← ');
-      return `<div data-i="${i}">${n.name}<div class="path">${path}</div></div>`;
-    }).join('');
-    orgResultsBox.style.display = 'block';
-    orgResultsBox.querySelectorAll('div[data-i]').forEach(elm => {
-      elm.addEventListener('click', () => {
-        const idx = +elm.getAttribute('data-i');
-        orgResultsBox.style.display = 'none';
-        openOrgChartFor(matches[idx]);
-      });
-    });
+    // 2+ real matches -- hand off to the shared full-screen ambiguous-
+    // match page (see showAmbiguousMatches) instead of this panel's own
+    // small embedded list.
+    orgResultsBox.style.display = 'none';
+    showAmbiguousMatches(matches, (chosen) => openOrgChartFor(chosen));
   }
   document.getElementById('orgSearchBtn').addEventListener('click', runOrgSearch);
   [
