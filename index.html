@@ -2403,12 +2403,35 @@
       searchResultsBox.style.display = 'block';
       return;
     }
-    // exactly one in the normal case; in the rare event of a duplicate
-    // 5-name chain, pick the first (sorted, deterministic) match rather
-    // than leaving the user stuck with no way to submit
-    listSearchPanelWrap.classList.add('collapsed');
-    searchResultsBox.style.display = 'none';
-    revealNode(matches[0]);
+    if(matches.length === 1){
+      listSearchPanelWrap.classList.add('collapsed');
+      searchResultsBox.style.display = 'none';
+      revealNode(matches[0]);
+      return;
+    }
+    // More than one real person can share an identical 5-name chain --
+    // "الفرع الرئيسي" only has to match n._branchName, a shared umbrella
+    // label well above these 5 names, so two cousins deep in different
+    // sub-lines can easily collide on name+father+grandfather+جد أكبر+فرع.
+    // This used to silently جump to matches[0] and never tell the user
+    // other real people matched too (reported: a name that should be
+    // ambiguous never offered a pick-list, unlike أقربائي/فرعي's own
+    // search which already does this). Now it shows every match with its
+    // FULL ancestry -- same #searchResults markup/styling أقربائي/فرعي
+    // already use -- so the user can tell them apart and choose.
+    searchResultsBox.innerHTML = matches.map((n,i) => {
+      const path = ancestorChain(n).join(' ← ');
+      return `<div data-i="${i}">${n.name}<div class="path">${path}</div></div>`;
+    }).join('');
+    searchResultsBox.style.display = 'block';
+    searchResultsBox.querySelectorAll('div[data-i]').forEach(elm => {
+      elm.addEventListener('click', () => {
+        const idx = +elm.getAttribute('data-i');
+        listSearchPanelWrap.classList.add('collapsed');
+        searchResultsBox.style.display = 'none';
+        revealNode(matches[idx]);
+      });
+    });
   }
   LIST_SEARCH_FIELD_IDS.forEach(id => {
     document.getElementById(id).addEventListener('input', maybeAutoResolveListSearch);
