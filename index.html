@@ -193,16 +193,23 @@
   }
   .search-field input::placeholder{ color:#9dbfa9; }
   .search-field input:focus{ outline:none; border-color:var(--male); box-shadow:0 0 0 3px rgba(63,143,104,.15); }
-  #searchResults, #relResults{
+  /* #orgResults (فرعي's own version of this same ambiguous-match picker)
+     was missing from every rule here -- the matches were still being
+     rendered into it with the exact same markup as #relResults/
+     #searchResults (same JS pattern, just org-prefixed), but with none of
+     this styling applied they fell back to bare unstyled text instead of
+     a proper bordered, clickable card list. Reported as أقربائي showing
+     "الأسماء المتشابهة بكامل النسب" as a real pick-list while فرعي didn't. */
+  #searchResults, #relResults, #orgResults{
     margin-top:8px; background:#fff;
     border:1.5px solid var(--gold); border-radius:var(--radius-sm); max-height:280px;
     overflow-y:auto; display:none; box-shadow:var(--shadow-lg);
   }
-  #searchResults div, #relResults div{ padding:8px 10px; cursor:pointer; border-bottom:1px solid #eee; font-size:.85em; }
-  #searchResults div:hover, #relResults div:hover{ background:#e6f4ea; }
-  #searchResults .path, #relResults .path{ color:#888; font-size:.75em; }
-  #searchResults div.error, #relResults div.error{ cursor:default; color:#c0392b; font-weight:700; }
-  #searchResults div.error:hover, #relResults div.error:hover{ background:#fff; }
+  #searchResults div, #relResults div, #orgResults div{ padding:8px 10px; cursor:pointer; border-bottom:1px solid #eee; font-size:.85em; }
+  #searchResults div:hover, #relResults div:hover, #orgResults div:hover{ background:#e6f4ea; }
+  #searchResults .path, #relResults .path, #orgResults .path{ color:#888; font-size:.75em; }
+  #searchResults div.error, #relResults div.error, #orgResults div.error{ cursor:default; color:#c0392b; font-weight:700; }
+  #searchResults div.error:hover, #relResults div.error:hover, #orgResults div.error:hover{ background:#fff; }
 
   /* the full mobile "app shell" layout (header/pills/toolbar/hint fixed,
      only the tree or chart scrolling) lives in one place near the very
