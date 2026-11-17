@@ -879,6 +879,16 @@
         <button id="listBackBtn" disabled><svg class="btn-ic"><use href="#ic-arrow-left"></use></svg> رجوع</button>
       </div>
 
+      <!-- Kept ABOVE #listSearchPanelWrap deliberately: this hint is about
+           the TREE ROWS below, and is meant to stay pinned right under the
+           toolbar at all times. It used to sit after the search panel, so
+           opening بحث's 5 fields pushed it (and the tree) further down the
+           page instead of leaving it in place -- reported as "this hint
+           should stay fixed at the top, not move down." Now only the tree
+           view gets pushed when the panel opens; the hint itself doesn't
+           move. -->
+      <p class="list-hint">👆 اضغط على الاسم لفتح أو طي الفرع</p>
+
       <div class="search-panel-wrap collapsed" id="listSearchPanelWrap">
         <div class="search-panel">
           <div class="search-field">
@@ -910,7 +920,6 @@
         </div>
       </div>
 
-      <p class="list-hint">👆 اضغط على الاسم لفتح أو طي الفرع</p>
       <div id="treeViewport">
         <p class="load-note" id="loadNote">جارٍ تحميل الشجرة…</p>
       </div>
@@ -2384,9 +2393,14 @@
   document.getElementById('searchGrandfather').addEventListener('input', refreshGgfOptions);
   document.getElementById('searchGGFather').addEventListener('input', refreshBranchOptions);
 
+  // رجوع is enabled either when there's a past بحث reveal to undo, OR the
+  // 5-field search panel is currently open (closing THAT also counts as
+  // something to "go back" from now -- see listGoBack's own comment).
   function updateListBackBtn(){
     const btn = document.getElementById('listBackBtn');
-    if(btn) btn.disabled = listHistory.length === 0;
+    if(!btn) return;
+    const panelOpen = listSearchPanelWrap && !listSearchPanelWrap.classList.contains('collapsed');
+    btn.disabled = !panelOpen && listHistory.length === 0;
   }
 
   function clearSearchMatch(){
@@ -2443,6 +2457,17 @@
   }
 
   function listGoBack(){
+    // Closing an open بحث panel takes priority over undoing a past reveal.
+    // بحث used to toggle itself closed again on a second click, which read
+    // as "I have to press بحث to get OUT of بحث" -- رجوع is the dedicated
+    // "back out of this" control everywhere else on this page, so it's
+    // what cancels an open search now too (see updateListBackBtn for why
+    // it's enabled whenever the panel is open, even with no history yet).
+    if(listSearchPanelWrap && !listSearchPanelWrap.classList.contains('collapsed')){
+      listSearchPanelWrap.classList.add('collapsed');
+      updateListBackBtn();
+      return;
+    }
     if(!listHistory.length) return;
     const entry = listHistory.pop();
     entry.openedAncestors.forEach(cur => {
@@ -2491,16 +2516,20 @@
   }
   window.addEventListener('resize', fitListSearchPanelHeight);
 
+  // بحث only OPENS the panel now -- closing it is رجوع's job (see
+  // listGoBack). It used to also toggle itself closed on a second click,
+  // which meant leaving the search required pressing بحث again instead of
+  // the رجوع button that does that job everywhere else on this page.
   listSearchToggleBtn.addEventListener('click', () => {
-    const isClosed = listSearchPanelWrap.classList.contains('collapsed');
-    if(isClosed){
+    if(listSearchPanelWrap.classList.contains('collapsed')){
       resetListSearchPanel();
       listSearchPanelWrap.classList.remove('collapsed');
       document.getElementById('searchName').focus();
       fitListSearchPanelHeight();
     }else{
-      listSearchPanelWrap.classList.add('collapsed');
+      document.getElementById('searchName').focus();
     }
+    updateListBackBtn();
   });
 
   // deliberately stricter than search()'s fuzzy/partial matching used
