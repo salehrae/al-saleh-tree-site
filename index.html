@@ -618,6 +618,24 @@
        put; only the tree rows (#treeViewport) scroll */
     .tree-content{ display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; }
     .controls, #listSearchPanelWrap, .tree-content > .list-hint{ flex:0 0 auto; }
+    /* #listSearchPanelWrap itself doesn't grow/shrink (flex:0 0 auto,
+       above) -- fine normally, since its 5 fields comfortably fit. But
+       when a name is ambiguous, #searchResults can add 2-3 extra
+       candidate cards below those fields, and this whole panel sits
+       ABOVE #treeViewport (the only element this layout lets scroll) --
+       once the panel's own natural height then exceeds what's left of
+       the screen, the overflow isn't just clipped by #searchResults' own
+       max-height/overflow-y (that only helps content already inside the
+       visible area), it's clipped by .tree-content/body's own
+       overflow:hidden, with nothing below it able to scroll into view at
+       all. Reported as the candidate picker opening but being unreachable
+       on a phone. JS (fitListSearchPanelHeight, called when the panel
+       opens and on resize) sets an inline max-height capping this panel
+       to whatever room is actually left below it in the viewport, and
+       this gives it its own internal scroll for that case specifically. */
+    #listSearchPanelWrap:not(.collapsed){
+      overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+    }
     /* min-width:0 alongside overflow-y:auto is what keeps THIS PANE itself
        from growing wider than the screen when a deeply-expanded row
        (توسيع الكل can run 13 generations deep) is a bit wider than
@@ -2360,12 +2378,28 @@
     searchResultsBox.style.display = 'none';
   }
 
+  // Only the mobile app-shell layout pins this panel above a non-scrolling
+  // ancestor (see that media query's own comment on #listSearchPanelWrap) --
+  // on desktop the page just scrolls normally, so this leaves it alone there.
+  const MOBILE_SHELL_QUERY = '(max-width: 768px), (hover: none) and (pointer: coarse)';
+  function fitListSearchPanelHeight(){
+    if(!window.matchMedia(MOBILE_SHELL_QUERY).matches || listSearchPanelWrap.classList.contains('collapsed')){
+      listSearchPanelWrap.style.maxHeight = '';
+      return;
+    }
+    const top = listSearchPanelWrap.getBoundingClientRect().top;
+    const available = Math.max(160, Math.round(window.innerHeight - top - 12));
+    listSearchPanelWrap.style.maxHeight = available + 'px';
+  }
+  window.addEventListener('resize', fitListSearchPanelHeight);
+
   listSearchToggleBtn.addEventListener('click', () => {
     const isClosed = listSearchPanelWrap.classList.contains('collapsed');
     if(isClosed){
       resetListSearchPanel();
       listSearchPanelWrap.classList.remove('collapsed');
       document.getElementById('searchName').focus();
+      fitListSearchPanelHeight();
     }else{
       listSearchPanelWrap.classList.add('collapsed');
     }
@@ -2401,6 +2435,7 @@
     if(!matches.length){
       searchResultsBox.innerHTML = '<div class="error">لا يوجد فرد بهذه الأسماء الخمسة — تحقق من التدقيق</div>';
       searchResultsBox.style.display = 'block';
+      fitListSearchPanelHeight();
       return;
     }
     if(matches.length === 1){
@@ -2432,6 +2467,7 @@
         revealNode(matches[idx]);
       });
     });
+    fitListSearchPanelHeight();
   }
   LIST_SEARCH_FIELD_IDS.forEach(id => {
     document.getElementById(id).addEventListener('input', maybeAutoResolveListSearch);
